@@ -1,6 +1,6 @@
 // Circuits module.
 
-const circuits = (function() {
+const functionCharts = (function() {
 'use strict';
 
 function isCircuit(item) {
@@ -2792,18 +2792,18 @@ Editor.prototype.onKeyDown = function(e) {
 }
 
 return {
-  circuitModel: circuitModel,
-  editingModel: editingModel,
-  getType: getType,
+  circuitModel,
+  editingModel,
+  getType,
 
-  TypeParser: TypeParser,
-  Renderer: Renderer,
+  TypeParser,
+  Renderer,
 
-  Editor: Editor,
+  Editor,
 };
 })();
 
-const circuit_data =
+const function_chart_data =
 {
   "kind": "circuit",
   "id": 1,

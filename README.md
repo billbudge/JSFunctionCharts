@@ -1,15 +1,12 @@
-﻿# Diagrammar: A Graphical Programming Language
-
+﻿# FunctionCharts: A Graphical Representation of Functional Programs
 Diagrammar is an experimental graphical programming environment. It is a Dataflow language, with values flowing along graph edges, and functions represented as graph nodes. Since functions can be created and instantiated, more complex programs can be built. This introduction shows how Quicksort and some other classic algorithms can be built, and hopefully demonstrates the advantages of this approach.
 
 ## Data Flow programming review
-
 Dataflow diagrams are a graphical programming method where data processing elements, represented by graph nodes, are connected by edges that represent data transfer. The graph is like an electrical circuit, and the advantage is that data flow can more easily be visualized as a graph.
 
 Most data flow systems model restricted domains, and have limited ability to represent abstractions. Diagrammar adds a way to easily define and use new families of functions, and to create abstractions that make the diagrams more widely useful.
 
 ## Building expressions and grouping
-
 For now, let's imagine a language with one value type, which can represent numbers, strings, arrays, or other types of objects. This makes our circuits simpler, with only one primitive wire and pin type. Circuit elements for built-in operations can be provided by the language, and combined to form useful expressions.
 
 <figure>
@@ -56,7 +53,6 @@ We can use these new functions just like the built in ones to create more comple
 </figure>
 
 ## Function Abstraction
-
 We have to rebuild these graphs every time we want to create a similar function, for example cascading binary multiplication or logical operations. To make the graph representation more powerful, any function can be abstracted. This adds an input value, of the same type as the function, to indicate that the function is merely a "shell" and the function body is imported. This operation is called "opening" the function. This allows us to create functions that takes other functions as inputs. Here, we use have abstracted two binary addition operations and identified both function inputs to create a cascaded 3-ary operation that takes a single binary function as an additional input.
 
 <figure>
@@ -70,7 +66,6 @@ We can nest function definitions to avoid repetition definitions. Before we stat
 </figure>
 
 ## Function Creation
-
 Now we need a way to create functions that can be imported. The mechanism is function closure. Any function element can be closed, which creates a function output whose type is all disconnected inputs, and all outputs. This is exactly analogous to function closure in regular programming languages. In the diagram below, we can create an incrementing function by grouping as before, or by partially applying addition to a literal 1 value and closing to get a unary incrementing function.
 
 <figure>
@@ -96,11 +91,9 @@ Function closing is a powerful graph simplification mechanism. Imagine we wanted
 </figure>
 
 ## Iteration
-
 Iteration can be challenging in a data flow system. Let's start with everyone's favorite toy example, the factorial function.
 
 ### Factorial
-
 We can create most of this with simple operations, but we get stuck at the recursive part. We need to use the function that we're in the middle of creating. The solution is to provide a special proto-function operation. A part of the graph can be selected, and a proto-function element will be created that matches what would be created from the selection by the normal grouping operation. This proto-function element can then be used in the graph to represent recursion. This will also be our mechanism for iteration in a moment.
 
 <figure>

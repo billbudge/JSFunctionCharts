@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Statechart Editor</title>
+  <title>FunctionChart Editor</title>
   <link rel="shortcut icon" href="./favicon.ico">
 </head>
 <body id="body" z-index="0">
@@ -15,7 +15,7 @@
 <script src="JSAppFramework/data_models.js"></script>
 <script src="JSAppFramework/diagrams.js"></script>
 <script src="JSAppFramework/geometry.js"></script>
-<script src="statecharts.js"></script>
+<script src="functionCharts.js"></script>
 <script src="third_party/FileSaver.min.js"></script>
 <script src="third_party/canvas2svg/canvas2svg.js"></script>
 
@@ -26,23 +26,22 @@
   const body = document.getElementById('body'),
         canvas = document.getElementById('canvas'),
         palette = document.getElementById('palette'),
-        // TODO proper "document" handling.
-        statechartModel = { root: statechart_data },
+        functionChartModel = { root: function_chart_data },
         theme = diagrams.theme.createDefault(),  // or createBlueprint
         canvasController = new diagrams.CanvasController(canvas, theme),
         paletteController = new diagrams.CanvasController(palette, theme),
         propertyGridController = new diagrams.PropertyGridController(body, theme),
-        statechartEditor = new statecharts.Editor(
+        functionChartEditor = new functionCharts.Editor(
             theme, canvasController, paletteController, propertyGridController);
 
-  statechartEditor.initializeModel(statechartModel);
-  statechartEditor.setModel(statechartModel);
+        functionChartEditor.initializeModel(functionChartModel);
+        functionChartEditor.setModel(functionChartModel);
 
   document.bgColor = theme.bgColor;
 
-  canvasController.configure([statechartEditor]);
+  canvasController.configure([functionChartEditor]);
   canvasController.setSize(window.innerWidth, window.innerHeight);
-  paletteController.configure([statechartEditor]);
+  paletteController.configure([functionChartEditor]);
   paletteController.setSize(150, 100);
 
   window.onbeforeunload = function() {

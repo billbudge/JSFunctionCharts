@@ -1,12 +1,12 @@
-// Circuit unit tests
+// FunctionChart unit tests
 
-const circuitTests = (function () {
+const functionChartTests = (function () {
 'use strict';
 
-function newCircuit() {
+function newFunctionChart() {
   return {
     root: {  // dataModels default is model.root for data.
-      kind: 'circuit',
+      kind: 'functionChart',
       x: 0,
       y: 0,
       items: [],
@@ -78,8 +78,8 @@ function newLiteral(value) {
 }
 
 function newTestSignatureModel() {
-  let circuit = newCircuit();
-  let test = circuits.signatureModel.extend(circuit);
+  let functionChart = newFunctionChart();
+  let test = functionCharts.signatureModel.extend(functionChart);
   return test;
 }
 
@@ -111,20 +111,20 @@ function addWire(test, src, srcPin, dst, dstPin) {
   return wire;
 }
 
-function newTestCircuitModel() {
-  const model = newCircuit(),
-        test = circuits.circuitModel.extend(model);
+function newTestFunctionChartModel() {
+  const model = newFunctionChart(),
+        test = functionCharts.functionChartModel.extend(model);
   model.dataModel.initialize();
   return test;
 }
 
 function newTestEditingModel() {
-  const model = newCircuit(),
-        test = circuits.editingModel.extend(model);
-  circuits.circuitModel.extend(model);
+  const model = newFunctionChart(),
+        test = functionCharts.editingModel.extend(model);
+  functionCharts.functionChartModel.extend(model);
   model.dataModel.initialize();
 
-  model.renderer = new circuits.Renderer(model);
+  model.renderer = new functionCharts.Renderer(model);
   // Context sufficient for tests.
   const ctx = {
     measureText: () => { return { width: 10, height: 10 }},
@@ -140,8 +140,8 @@ function doInitialize(item) {
 
 //------------------------------------------------------------------------------
 
-test("circuits.TypeParser.add", function() {
-  const test = new circuits.TypeParser();
+test("functionCharts.TypeParser.add", function() {
+  const test = new functionCharts.TypeParser();
   const types = [
     '[vv,v](+)',
     '[v(a)v(b),v(c)]',
@@ -156,8 +156,8 @@ test("circuits.TypeParser.add", function() {
   ok(test.has('[v,vv(q)]'));
 });
 
-test("circuits.TypeParser.splitType", function() {
-  const test = new circuits.TypeParser();
+test("functionCharts.TypeParser.splitType", function() {
+  const test = new functionCharts.TypeParser();
   const tuples = [
     { type: '[vv,v](+)', expected: 3 },
     { type: '[v(a)v(b),v(c)]', expected: 9 },
@@ -168,22 +168,22 @@ test("circuits.TypeParser.splitType", function() {
       tuple => deepEqual(test.splitType(tuple.type), tuple.expected));
 });
 
-test("circuits.TypeParser.trimType", function() {
-  const test = new circuits.TypeParser();
+test("functionCharts.TypeParser.trimType", function() {
+  const test = new functionCharts.TypeParser();
   deepEqual(test.trimType('[v,vv](foo)'), '[v,vv]');
   deepEqual(test.trimType('[v,vv]'), '[v,vv]');
   deepEqual(test.trimType('[vvv(foo)'), '[vvv');
 });
 
-test("circuits.TypeParser.getUnlabeledType", function() {
-  const test = new circuits.TypeParser();
+test("functionCharts.TypeParser.getUnlabeledType", function() {
+  const test = new functionCharts.TypeParser();
   deepEqual(test.getUnlabeledType('[v,vv](foo)'), '[v,vv]');
   deepEqual(test.getUnlabeledType('[v,vv]'), '[v,vv]');
   deepEqual(test.getUnlabeledType('[vvv(foo)'), '[vvv');
 });
 
-test("circuits.TypeParser.addInputToType", function() {
-  const test = new circuits.TypeParser();
+test("functionCharts.TypeParser.addInputToType", function() {
+  const test = new functionCharts.TypeParser();
   const tuples = [
     { type: '[,]', innerType: '*(x)', joined: '[*(x),]' },
     { type: '[vv,v](+)', innerType: '*(x)', joined: '[vv*(x),v](+)' },
@@ -192,8 +192,8 @@ test("circuits.TypeParser.addInputToType", function() {
     tuple => deepEqual(test.addInputToType(tuple.type, tuple.innerType), tuple.joined));
 });
 
-test("circuits.TypeParser.addOutputToType", function() {
-  const test = new circuits.TypeParser();
+test("functionCharts.TypeParser.addOutputToType", function() {
+  const test = new functionCharts.TypeParser();
   const tuples = [
     { type: '[,]', innerType: '*(x)', joined: '[,*(x)]' },
     { type: '[vv,v](+)', innerType: '*(x)', joined: '[vv,v*(x)](+)' },
@@ -204,15 +204,15 @@ test("circuits.TypeParser.addOutputToType", function() {
 
 //------------------------------------------------------------------------------
 
-test("circuits.circuitModel.extend", function() {
-  let test = newTestCircuitModel();
+test("functionCharts.functionChartModel.extend", function() {
+  let test = newTestFunctionChartModel();
   ok(test);
   ok(test.model);
   ok(test.model.referencingModel);
 });
 
-test("circuits.circuitModel.getGraphInfo", function() {
-  const test = newTestCircuitModel(),
+test("functionCharts.functionChartModel.getGraphInfo", function() {
+  const test = newTestFunctionChartModel(),
         a = addElement(test, newTypedElement('[vv,v]')),
         b = addElement(test, newTypedElement('[vv,v]')),
         a0_b1 = addWire(test, a, 0, b, 1);
@@ -250,8 +250,8 @@ test("circuits.circuitModel.getGraphInfo", function() {
   test.checkConsistency();
 });
 
-test("circuits.circuitModel.getSubgraphInfo", function() {
-  const test = newTestCircuitModel(),
+test("functionCharts.functionChartModel.getSubgraphInfo", function() {
+  const test = newTestFunctionChartModel(),
         a = addElement(test, newTypedElement('[vv,v]')),
         b = addElement(test, newTypedElement('[vv,v]')),
         a0_b1 = addWire(test, a, 0, b, 1);
@@ -291,8 +291,8 @@ function testIterator(fn, element, items) {
   deepEqual(items, iterated);
 }
 
-test("circuits.circuitModel.inputOutputWireIteration", function() {
-  const test = newTestCircuitModel(),
+test("functionCharts.functionChartModel.inputOutputWireIteration", function() {
+  const test = newTestFunctionChartModel(),
         a = addElement(test, newTypedElement('[vv,v]')),
         b = addElement(test, newTypedElement('[vv,v]')),
         a0_b0 = addWire(test, a, 0, b, 0),
@@ -312,8 +312,8 @@ test("circuits.circuitModel.inputOutputWireIteration", function() {
   testIterator(outputFn, b, [b0_d0]);
 });
 
-test("circuits.circuitModel.getConnectedElements", function() {
-  const test = newTestCircuitModel(),
+test("functionCharts.functionChartModel.getConnectedElements", function() {
+  const test = newTestFunctionChartModel(),
         items = test.model.root.items,
         a = addElement(test, newTypedElement('[vv,v]')),
         b = addElement(test, newTypedElement('[vv,v]')),
@@ -333,20 +333,20 @@ test("circuits.circuitModel.getConnectedElements", function() {
   ok(downstream.includes(elem3));
 });
 
-test("circuits.editingAndTyping", function() {
+test("functionCharts.editingAndTyping", function() {
   const test = newTestEditingModel(),
-        circuit = test.model.root,
-        circuitModel = test.model.circuitModel;
+        functionChart = test.model.root,
+        functionChartModel = test.model.functionChartModel;
   // Add an item.
   const a = newTypedElement('[vv,v]');
   test.newItem(a);
-  test.addItem(a, circuit);
+  test.addItem(a, functionChart);
   // Check type.
   const type = a.type;
-  deepEqual(stringifyType(circuits.getType(a)), type);
+  deepEqual(stringifyType(functionCharts.getType(a)), type);
 });
 
-test("circuits.editingModel", function() {
+test("functionCharts.editingModel", function() {
   const test = newTestEditingModel();
   ok(test);
   ok(test.model);
@@ -354,7 +354,7 @@ test("circuits.editingModel", function() {
   ok(test.model.selectionModel);
 });
 
-test("circuits.editingModel.newItem", function() {
+test("functionCharts.editingModel.newItem", function() {
   const test = newTestEditingModel();
   test.model.dataModel.addInitializer(doInitialize);
   let a = newElement();
@@ -363,7 +363,7 @@ test("circuits.editingModel.newItem", function() {
   ok(a.initalized);
 });
 
-test("circuits.editingModel.newElement", function() {
+test("functionCharts.editingModel.newElement", function() {
   const test = newTestEditingModel();
   test.model.dataModel.addInitializer(doInitialize);
   let a = test.newElement('[v,v]', 10, 20, 'foo');
@@ -374,94 +374,94 @@ test("circuits.editingModel.newElement", function() {
   deepEqual(a.elementKind, 'foo');
 });
 
-test("circuits.editingModel.addItem", function() {
+test("functionCharts.editingModel.addItem", function() {
   const test = newTestEditingModel(),
         model = test.model,
-        circuit = model.root;
+        functionChart = model.root;
   // Add an item.
   const a = newElement();
   test.newItem(a);
 
   model.transactionModel.beginTransaction();
-  test.addItem(a, circuit);
+  test.addItem(a, functionChart);
   model.transactionModel.endTransaction();
 
-  deepEqual(circuit.items, [a]);
-  deepEqual(model.hierarchicalModel.getParent(a), circuit);
+  deepEqual(functionChart.items, [a]);
+  deepEqual(model.hierarchicalModel.getParent(a), functionChart);
 
   model.transactionHistory.undo();
-  deepEqual(circuit.items, []);
+  deepEqual(functionChart.items, []);
 });
 
-test("circuits.editingModel.deleteItem", function() {
+test("functionCharts.editingModel.deleteItem", function() {
   const test = newTestEditingModel(),
         model = test.model,
-        circuit = model.root;
+        functionChart = model.root;
   const a = newElement();
   test.newItem(a);
-  test.addItem(a, circuit);
+  test.addItem(a, functionChart);
 
   model.transactionModel.beginTransaction();
   test.deleteItem(a);
   model.transactionModel.endTransaction();
 
-  deepEqual(circuit.items, []);
+  deepEqual(functionChart.items, []);
 
   model.transactionHistory.undo();
-  deepEqual(circuit.items, [a]);
+  deepEqual(functionChart.items, [a]);
 });
 
-test("circuits.editingModel.connectInput", function() {
+test("functionCharts.editingModel.connectInput", function() {
   const test = newTestEditingModel(),
         model = test.model,
-        circuit = model.root;
+        functionChart = model.root;
   // Add an item.
   const a = newElement();
   test.newItem(a);
-  test.addItem(a, circuit);
+  test.addItem(a, functionChart);
 
   model.transactionModel.beginTransaction();
   // Connect input 0.
   test.connectInput(a, 0);
   model.transactionModel.endTransaction();
 
-  deepEqual(circuit.items.length, 3);
-  let junction = circuit.items[1],
-      wire = circuit.items[2];
+  deepEqual(functionChart.items.length, 3);
+  let junction = functionChart.items[1],
+      wire = functionChart.items[2];
   deepEqual(junction.elementKind, 'input');
   deepEqual(test.getWireSrc(wire), junction);
   deepEqual(test.getWireDst(wire), a);
 
   model.transactionHistory.undo();
-  deepEqual(circuit.items, [a]);
+  deepEqual(functionChart.items, [a]);
 });
 
-test("circuits.editingModel.connectOutput", function() {
+test("functionCharts.editingModel.connectOutput", function() {
   const test = newTestEditingModel(),
         model = test.model,
-        circuit = model.root;
+        functionChart = model.root;
   // Add an item.
   const a = newElement();
   test.newItem(a);
-  test.addItem(a, circuit);
+  test.addItem(a, functionChart);
 
   model.transactionModel.beginTransaction();
   // Connect output 0.
   test.connectOutput(a, 0);
   model.transactionModel.endTransaction();
 
-  deepEqual(circuit.items.length, 3);
-  let junction = circuit.items[1],
-      wire = circuit.items[2];
+  deepEqual(functionChart.items.length, 3);
+  let junction = functionChart.items[1],
+      wire = functionChart.items[2];
   deepEqual(junction.elementKind, 'output');
   deepEqual(test.getWireSrc(wire), a);
   deepEqual(test.getWireDst(wire), junction);
 
   model.transactionHistory.undo();
-  deepEqual(circuit.items, [a]);
+  deepEqual(functionChart.items, [a]);
 });
 
-test("circuits.editingModel.getLabel", function() {
+test("functionCharts.editingModel.getLabel", function() {
   const test = newTestEditingModel();
   const a = addElement(test, newInputJunction('[,v(foo)](bar)'));
   deepEqual(test.getLabel(a), 'foo');
@@ -473,7 +473,7 @@ test("circuits.editingModel.getLabel", function() {
   deepEqual(test.getLabel(c), '0');
 });
 
-test("circuits.editingModel.setLabel", function() {
+test("functionCharts.editingModel.setLabel", function() {
   const test = newTestEditingModel(),
         dataModel = test.model.dataModel;
   const input = addElement(test, newInputJunction('[,*]'));
@@ -504,7 +504,7 @@ test("circuits.editingModel.setLabel", function() {
   deepEqual(test.setLabel(element, ''), '[vv,vv]');
 });
 
-test("circuits.editingModel.changeType", function() {
+test("functionCharts.editingModel.changeType", function() {
   const test = newTestEditingModel(),
         dataModel = test.model.dataModel;
   let input = addElement(test, newInputJunction('[,*(f)]'));
@@ -524,7 +524,7 @@ test("circuits.editingModel.changeType", function() {
   deepEqual(test.changeType(output, 'v'), '[v(f),]');
 });
 
-test("circuits.editingModel.completeGroup", function() {
+test("functionCharts.editingModel.completeGroup", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -545,7 +545,7 @@ test("circuits.editingModel.completeGroup", function() {
   deepEqual(items, [a, b, wire]);
 });
 
-test("circuits.editingModel.openElements", function() {
+test("functionCharts.editingModel.openElements", function() {
   const test = newTestEditingModel(),
         items = test.model.root.items,
         a = addElement(test, newTypedElement('[vv,v]')),
@@ -564,7 +564,7 @@ test("circuits.editingModel.openElements", function() {
   deepEqual(openElement.type, '[v(a)v(b)[vv,v],v(c)]');
 });
 
-test("circuits.editingModel.replaceElement", function() {
+test("functionCharts.editingModel.replaceElement", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -594,7 +594,7 @@ test("circuits.editingModel.replaceElement", function() {
   deepEqual(items, [a, b, wire, replacement1, replacement2]);
 });
 
-test("circuits.editingModel.build", function() {
+test("functionCharts.editingModel.build", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -616,7 +616,7 @@ test("circuits.editingModel.build", function() {
   deepEqual(items, [elem, input1, input2, output, wire1, wire2, wire3]);
 });
 
-test("circuits.editingModel.wireConsistency", function() {
+test("functionCharts.editingModel.wireConsistency", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -635,7 +635,7 @@ test("circuits.editingModel.wireConsistency", function() {
   deepEqual(items, [a, b, wire]);
 });
 
-test("circuits.editingModel.wireRollback", function() {
+test("functionCharts.editingModel.wireRollback", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -648,12 +648,12 @@ test("circuits.editingModel.wireRollback", function() {
   model.observableModel.changeValue(wire, 'dstId', model.dataModel.getId(b));
   model.observableModel.changeValue(wire, 'dstPin', 0);
   model.transactionModel.cancelTransaction();
-  ok(model.circuitModel.checkConsistency());
+  ok(model.functionChartModel.checkConsistency());
 
   deepEqual(items, [a, b]);
 });
 
-test("circuits.editingModel.groupConsistency", function() {
+test("functionCharts.editingModel.groupConsistency", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -707,10 +707,10 @@ test("circuits.editingModel.groupConsistency", function() {
 
 // TODO fix these tests to work with new grouping
 
-// test("circuits.editingModel.findSrcType", function() {
+// test("functionCharts.editingModel.findSrcType", function() {
 //   let test = newTestEditingModel(),
-//       circuit = test.model,
-//       items = circuit.root.items,
+//       functionChart = test.model,
+//       items = functionChart.root.items,
 //       a = addElement(test, newInputJunction('[,*]')),
 //       b = addElement(test, newOutputJunction('[*,]')),
 //       wire = addWire(test, a, 0, b, 0),
@@ -720,7 +720,7 @@ test("circuits.editingModel.groupConsistency", function() {
 //         x: 0,
 //         y: 0,
 //         master: group.master,
-//         [_master]: circuits.getType(group),
+//         [_master]: functionCharts.getType(group),
 //       },
 //       expectedType = '[v,v]',
 //       elem4 = addElement(test, newTypedElement('[,' + expectedType + ']')),
@@ -737,14 +737,14 @@ test("circuits.editingModel.groupConsistency", function() {
 //         x: newGroupInstanceInfo.x,
 //         y: newGroupInstanceInfo.y,
 //         master: group.master,
-//         [_master]: circuits.getType(group),
+//         [_master]: functionCharts.getType(group),
 //         state: 'palette',
 //       };
 
-// test("circuits.editingModel.findDstType", function() {
+// test("functionCharts.editingModel.findDstType", function() {
 //   let test = newTestEditingModel(),
-//       circuit = test.model,
-//       items = circuit.root.items,
+//       functionChart = test.model,
+//       items = functionChart.root.items,
 //       a = addElement(test, newInputJunction('[,*]')),
 //       b = addElement(test, newOutputJunction('[*,]')),
 //       wire = addWire(test, a, 0, b, 0),
