@@ -140,7 +140,7 @@ function doInitialize(item) {
 
 //------------------------------------------------------------------------------
 
-test("functionCharts.TypeParser.add", function() {
+QUnit.test("functionCharts.TypeParser.add", function() {
   const test = new functionCharts.TypeParser();
   const types = [
     '[vv,v](+)',
@@ -148,15 +148,15 @@ test("functionCharts.TypeParser.add", function() {
     '[,[,v][v,v]](@)',
     '[[v,vv(q)](a)v(b),v(c)](foo)',
   ];
-  types.forEach(type => deepEqual(stringifyType(test.add(type)), type));
-  types.forEach(type => ok(test.has(type)));
+  types.forEach(type => QUnit.assert.deepEqual(stringifyType(test.add(type)), type));
+  types.forEach(type => QUnit.assert.ok(test.has(type)));
   // Make sure subtypes are present.
-  ok(test.has('[,v]'));
-  ok(test.has('[v,v]'));
-  ok(test.has('[v,vv(q)]'));
+  QUnit.assert.ok(test.has('[,v]'));
+  QUnit.assert.ok(test.has('[v,v]'));
+  QUnit.assert.ok(test.has('[v,vv(q)]'));
 });
 
-test("functionCharts.TypeParser.splitType", function() {
+QUnit.test("functionCharts.TypeParser.splitType", function() {
   const test = new functionCharts.TypeParser();
   const tuples = [
     { type: '[vv,v](+)', expected: 3 },
@@ -165,53 +165,53 @@ test("functionCharts.TypeParser.splitType", function() {
     { type: '[[v,vv(q)](a)v(b),v(c)](foo)', expected: 17 },
   ];
   tuples.forEach(
-      tuple => deepEqual(test.splitType(tuple.type), tuple.expected));
+      tuple => QUnit.assert.deepEqual(test.splitType(tuple.type), tuple.expected));
 });
 
-test("functionCharts.TypeParser.trimType", function() {
+QUnit.test("functionCharts.TypeParser.trimType", function() {
   const test = new functionCharts.TypeParser();
-  deepEqual(test.trimType('[v,vv](foo)'), '[v,vv]');
-  deepEqual(test.trimType('[v,vv]'), '[v,vv]');
-  deepEqual(test.trimType('[vvv(foo)'), '[vvv');
+  QUnit.assert.deepEqual(test.trimType('[v,vv](foo)'), '[v,vv]');
+  QUnit.assert.deepEqual(test.trimType('[v,vv]'), '[v,vv]');
+  QUnit.assert.deepEqual(test.trimType('[vvv(foo)'), '[vvv');
 });
 
-test("functionCharts.TypeParser.getUnlabeledType", function() {
+QUnit.test("functionCharts.TypeParser.getUnlabeledType", function() {
   const test = new functionCharts.TypeParser();
-  deepEqual(test.getUnlabeledType('[v,vv](foo)'), '[v,vv]');
-  deepEqual(test.getUnlabeledType('[v,vv]'), '[v,vv]');
-  deepEqual(test.getUnlabeledType('[vvv(foo)'), '[vvv');
+  QUnit.assert.deepEqual(test.getUnlabeledType('[v,vv](foo)'), '[v,vv]');
+  QUnit.assert.deepEqual(test.getUnlabeledType('[v,vv]'), '[v,vv]');
+  QUnit.assert.deepEqual(test.getUnlabeledType('[vvv(foo)'), '[vvv');
 });
 
-test("functionCharts.TypeParser.addInputToType", function() {
+QUnit.test("functionCharts.TypeParser.addInputToType", function() {
   const test = new functionCharts.TypeParser();
   const tuples = [
     { type: '[,]', innerType: '*(x)', joined: '[*(x),]' },
     { type: '[vv,v](+)', innerType: '*(x)', joined: '[vv*(x),v](+)' },
   ];
   tuples.forEach(
-    tuple => deepEqual(test.addInputToType(tuple.type, tuple.innerType), tuple.joined));
+    tuple => QUnit.assert.deepEqual(test.addInputToType(tuple.type, tuple.innerType), tuple.joined));
 });
 
-test("functionCharts.TypeParser.addOutputToType", function() {
+QUnit.test("functionCharts.TypeParser.addOutputToType", function() {
   const test = new functionCharts.TypeParser();
   const tuples = [
     { type: '[,]', innerType: '*(x)', joined: '[,*(x)]' },
     { type: '[vv,v](+)', innerType: '*(x)', joined: '[vv,v*(x)](+)' },
   ];
   tuples.forEach(
-    tuple => deepEqual(test.addOutputToType(tuple.type, tuple.innerType), tuple.joined));
+    tuple => QUnit.assert.deepEqual(test.addOutputToType(tuple.type, tuple.innerType), tuple.joined));
 });
 
 //------------------------------------------------------------------------------
 
-test("functionCharts.functionChartModel.extend", function() {
+QUnit.test("functionCharts.functionChartModel.extend", function() {
   let test = newTestFunctionChartModel();
-  ok(test);
-  ok(test.model);
-  ok(test.model.referencingModel);
+  QUnit.assert.ok(test);
+  QUnit.assert.ok(test.model);
+  QUnit.assert.ok(test.model.referencingModel);
 });
 
-test("functionCharts.functionChartModel.getGraphInfo", function() {
+QUnit.test("functionCharts.functionChartModel.getGraphInfo", function() {
   const test = newTestFunctionChartModel(),
         a = addElement(test, newTypedElement('[vv,v]')),
         b = addElement(test, newTypedElement('[vv,v]')),
@@ -219,14 +219,14 @@ test("functionCharts.functionChartModel.getGraphInfo", function() {
   let graph;
 
   graph = test.getGraphInfo([a, b]);
-  ok(graph.elementsAndGroups.has(a));
-  ok(graph.elementsAndGroups.has(b));
-  deepEqual(graph.elementsAndGroups.size, 2);
-  deepEqual(graph.wires.size, 1);
-  ok(graph.interiorWires.has(a0_b1));
-  deepEqual(graph.interiorWires.size, 1);
-  deepEqual(graph.incomingWires.size, 0);
-  deepEqual(graph.outgoingWires.size, 0);
+  QUnit.assert.ok(graph.elementsAndGroups.has(a));
+  QUnit.assert.ok(graph.elementsAndGroups.has(b));
+  QUnit.assert.deepEqual(graph.elementsAndGroups.size, 2);
+  QUnit.assert.deepEqual(graph.wires.size, 1);
+  QUnit.assert.ok(graph.interiorWires.has(a0_b1));
+  QUnit.assert.deepEqual(graph.interiorWires.size, 1);
+  QUnit.assert.deepEqual(graph.incomingWires.size, 0);
+  QUnit.assert.deepEqual(graph.outgoingWires.size, 0);
 
   const c = addElement(test, newTypedElement('[,v]')),
         d = addElement(test, newTypedElement('[*,]')),
@@ -234,23 +234,23 @@ test("functionCharts.functionChartModel.getGraphInfo", function() {
         b0_d0 = addWire(test, b, 0, d, 0);
 
   graph = test.getGraphInfo();
-  ok(graph.elementsAndGroups.has(a));
-  ok(graph.elementsAndGroups.has(b));
-  ok(graph.elementsAndGroups.has(c));
-  ok(graph.elementsAndGroups.has(d));
-  deepEqual(graph.elementsAndGroups.size, 4);
-  ok(graph.interiorWires.has(a0_b1));
-  ok(graph.interiorWires.has(c0_a1));
-  ok(graph.interiorWires.has(b0_d0));
-  deepEqual(graph.wires.size, 3);
-  deepEqual(graph.interiorWires.size, 3);
-  deepEqual(graph.incomingWires.size, 0);
-  deepEqual(graph.outgoingWires.size, 0);
+  QUnit.assert.ok(graph.elementsAndGroups.has(a));
+  QUnit.assert.ok(graph.elementsAndGroups.has(b));
+  QUnit.assert.ok(graph.elementsAndGroups.has(c));
+  QUnit.assert.ok(graph.elementsAndGroups.has(d));
+  QUnit.assert.deepEqual(graph.elementsAndGroups.size, 4);
+  QUnit.assert.ok(graph.interiorWires.has(a0_b1));
+  QUnit.assert.ok(graph.interiorWires.has(c0_a1));
+  QUnit.assert.ok(graph.interiorWires.has(b0_d0));
+  QUnit.assert.deepEqual(graph.wires.size, 3);
+  QUnit.assert.deepEqual(graph.interiorWires.size, 3);
+  QUnit.assert.deepEqual(graph.incomingWires.size, 0);
+  QUnit.assert.deepEqual(graph.outgoingWires.size, 0);
 
   test.checkConsistency();
 });
 
-test("functionCharts.functionChartModel.getSubgraphInfo", function() {
+QUnit.test("functionCharts.functionChartModel.getSubgraphInfo", function() {
   const test = newTestFunctionChartModel(),
         a = addElement(test, newTypedElement('[vv,v]')),
         b = addElement(test, newTypedElement('[vv,v]')),
@@ -258,14 +258,14 @@ test("functionCharts.functionChartModel.getSubgraphInfo", function() {
   let subgraph;
 
   subgraph = test.getSubgraphInfo([a, b]);
-  ok(subgraph.elementsAndGroups.has(a));
-  ok(subgraph.elementsAndGroups.has(b));
-  deepEqual(subgraph.elementsAndGroups.size, 2);
-  ok(subgraph.interiorWires.has(a0_b1));
-  deepEqual(subgraph.wires.size, 1);
-  deepEqual(subgraph.interiorWires.size, 1);
-  deepEqual(subgraph.incomingWires.size, 0);
-  deepEqual(subgraph.outgoingWires.size, 0);
+  QUnit.assert.ok(subgraph.elementsAndGroups.has(a));
+  QUnit.assert.ok(subgraph.elementsAndGroups.has(b));
+  QUnit.assert.deepEqual(subgraph.elementsAndGroups.size, 2);
+  QUnit.assert.ok(subgraph.interiorWires.has(a0_b1));
+  QUnit.assert.deepEqual(subgraph.wires.size, 1);
+  QUnit.assert.deepEqual(subgraph.interiorWires.size, 1);
+  QUnit.assert.deepEqual(subgraph.incomingWires.size, 0);
+  QUnit.assert.deepEqual(subgraph.outgoingWires.size, 0);
 
   const c = addElement(test, newTypedElement('[,v]')),
         d = addElement(test, newTypedElement('[v,]')),
@@ -273,14 +273,14 @@ test("functionCharts.functionChartModel.getSubgraphInfo", function() {
         b0_d0 = addWire(test, b, 0, d, 0);
 
   subgraph = test.getSubgraphInfo([a, b]);
-  ok(subgraph.elementsAndGroups.has(a));
-  ok(subgraph.elementsAndGroups.has(b));
-  deepEqual(subgraph.elementsAndGroups.size, 2);
-  ok(subgraph.interiorWires.has(a0_b1));
-  deepEqual(subgraph.wires.size, 3);
-  deepEqual(subgraph.interiorWires.size, 1);
-  deepEqual(subgraph.incomingWires.size, 1);
-  deepEqual(subgraph.outgoingWires.size, 1);
+  QUnit.assert.ok(subgraph.elementsAndGroups.has(a));
+  QUnit.assert.ok(subgraph.elementsAndGroups.has(b));
+  QUnit.assert.deepEqual(subgraph.elementsAndGroups.size, 2);
+  QUnit.assert.ok(subgraph.interiorWires.has(a0_b1));
+  QUnit.assert.deepEqual(subgraph.wires.size, 3);
+  QUnit.assert.deepEqual(subgraph.interiorWires.size, 1);
+  QUnit.assert.deepEqual(subgraph.incomingWires.size, 1);
+  QUnit.assert.deepEqual(subgraph.outgoingWires.size, 1);
 
   test.checkConsistency();
 });
@@ -288,10 +288,10 @@ test("functionCharts.functionChartModel.getSubgraphInfo", function() {
 function testIterator(fn, element, items) {
   const iterated = [];
   fn(element, (item) => iterated.push(item));
-  deepEqual(items, iterated);
+  QUnit.assert.deepEqual(items, iterated);
 }
 
-test("functionCharts.functionChartModel.inputOutputWireIteration", function() {
+QUnit.test("functionCharts.functionChartModel.inputOutputWireIteration", function() {
   const test = newTestFunctionChartModel(),
         a = addElement(test, newTypedElement('[vv,v]')),
         b = addElement(test, newTypedElement('[vv,v]')),
@@ -312,7 +312,7 @@ test("functionCharts.functionChartModel.inputOutputWireIteration", function() {
   testIterator(outputFn, b, [b0_d0]);
 });
 
-test("functionCharts.functionChartModel.getConnectedElements", function() {
+QUnit.test("functionCharts.functionChartModel.getConnectedElements", function() {
   const test = newTestFunctionChartModel(),
         items = test.model.root.items,
         a = addElement(test, newTypedElement('[vv,v]')),
@@ -322,18 +322,18 @@ test("functionCharts.functionChartModel.getConnectedElements", function() {
         wire2 = addWire(test, b, 0, elem3, 1);
   // Get upstream and downstream connected elements from b.
   let all = Array.from(test.getConnectedElements([b], true, true));
-  deepEqual(all.length, 3);
-  ok(all.includes(a));
-  ok(all.includes(b));
-  ok(all.includes(elem3));
+  QUnit.assert.deepEqual(all.length, 3);
+  QUnit.assert.ok(all.includes(a));
+  QUnit.assert.ok(all.includes(b));
+  QUnit.assert.ok(all.includes(elem3));
   // Get only downstream connected elements from b.
   let downstream = Array.from(test.getConnectedElements([b], false, true));
-  deepEqual(downstream.length, 2);
-  ok(downstream.includes(b));
-  ok(downstream.includes(elem3));
+  QUnit.assert.deepEqual(downstream.length, 2);
+  QUnit.assert.ok(downstream.includes(b));
+  QUnit.assert.ok(downstream.includes(elem3));
 });
 
-test("functionCharts.editingAndTyping", function() {
+QUnit.test("functionCharts.editingAndTyping", function() {
   const test = newTestEditingModel(),
         functionChart = test.model.root,
         functionChartModel = test.model.functionChartModel;
@@ -343,38 +343,38 @@ test("functionCharts.editingAndTyping", function() {
   test.addItem(a, functionChart);
   // Check type.
   const type = a.type;
-  deepEqual(stringifyType(functionCharts.getType(a)), type);
+  QUnit.assert.deepEqual(stringifyType(functionCharts.getType(a)), type);
 });
 
-test("functionCharts.editingModel", function() {
+QUnit.test("functionCharts.editingModel", function() {
   const test = newTestEditingModel();
-  ok(test);
-  ok(test.model);
-  ok(test.model.dataModel);
-  ok(test.model.selectionModel);
+  QUnit.assert.ok(test);
+  QUnit.assert.ok(test.model);
+  QUnit.assert.ok(test.model.dataModel);
+  QUnit.assert.ok(test.model.selectionModel);
 });
 
-test("functionCharts.editingModel.newItem", function() {
+QUnit.test("functionCharts.editingModel.newItem", function() {
   const test = newTestEditingModel();
   test.model.dataModel.addInitializer(doInitialize);
   let a = newElement();
   test.newItem(a);
-  ok(a.id);
-  ok(a.initalized);
+  QUnit.assert.ok(a.id);
+  QUnit.assert.ok(a.initalized);
 });
 
-test("functionCharts.editingModel.newElement", function() {
+QUnit.test("functionCharts.editingModel.newElement", function() {
   const test = newTestEditingModel();
   test.model.dataModel.addInitializer(doInitialize);
   let a = test.newElement('[v,v]', 10, 20, 'foo');
-  ok(a.id);
-  ok(a.initalized);
-  deepEqual(a.x, 10);
-  deepEqual(a.y, 20);
-  deepEqual(a.elementKind, 'foo');
+  QUnit.assert.ok(a.id);
+  QUnit.assert.ok(a.initalized);
+  QUnit.assert.deepEqual(a.x, 10);
+  QUnit.assert.deepEqual(a.y, 20);
+  QUnit.assert.deepEqual(a.elementKind, 'foo');
 });
 
-test("functionCharts.editingModel.addItem", function() {
+QUnit.test("functionCharts.editingModel.addItem", function() {
   const test = newTestEditingModel(),
         model = test.model,
         functionChart = model.root;
@@ -386,14 +386,14 @@ test("functionCharts.editingModel.addItem", function() {
   test.addItem(a, functionChart);
   model.transactionModel.endTransaction();
 
-  deepEqual(functionChart.items, [a]);
-  deepEqual(model.hierarchicalModel.getParent(a), functionChart);
+  QUnit.assert.deepEqual(functionChart.items, [a]);
+  QUnit.assert.deepEqual(model.hierarchicalModel.getParent(a), functionChart);
 
   model.transactionHistory.undo();
-  deepEqual(functionChart.items, []);
+  QUnit.assert.deepEqual(functionChart.items, []);
 });
 
-test("functionCharts.editingModel.deleteItem", function() {
+QUnit.test("functionCharts.editingModel.deleteItem", function() {
   const test = newTestEditingModel(),
         model = test.model,
         functionChart = model.root;
@@ -405,13 +405,13 @@ test("functionCharts.editingModel.deleteItem", function() {
   test.deleteItem(a);
   model.transactionModel.endTransaction();
 
-  deepEqual(functionChart.items, []);
+  QUnit.assert.deepEqual(functionChart.items, []);
 
   model.transactionHistory.undo();
-  deepEqual(functionChart.items, [a]);
+  QUnit.assert.deepEqual(functionChart.items, [a]);
 });
 
-test("functionCharts.editingModel.connectInput", function() {
+QUnit.test("functionCharts.editingModel.connectInput", function() {
   const test = newTestEditingModel(),
         model = test.model,
         functionChart = model.root;
@@ -425,18 +425,18 @@ test("functionCharts.editingModel.connectInput", function() {
   test.connectInput(a, 0);
   model.transactionModel.endTransaction();
 
-  deepEqual(functionChart.items.length, 3);
+  QUnit.assert.deepEqual(functionChart.items.length, 3);
   let junction = functionChart.items[1],
       wire = functionChart.items[2];
-  deepEqual(junction.elementKind, 'input');
-  deepEqual(test.getWireSrc(wire), junction);
-  deepEqual(test.getWireDst(wire), a);
+  QUnit.assert.deepEqual(junction.elementKind, 'input');
+  QUnit.assert.deepEqual(test.getWireSrc(wire), junction);
+  QUnit.assert.deepEqual(test.getWireDst(wire), a);
 
   model.transactionHistory.undo();
-  deepEqual(functionChart.items, [a]);
+  QUnit.assert.deepEqual(functionChart.items, [a]);
 });
 
-test("functionCharts.editingModel.connectOutput", function() {
+QUnit.test("functionCharts.editingModel.connectOutput", function() {
   const test = newTestEditingModel(),
         model = test.model,
         functionChart = model.root;
@@ -450,81 +450,81 @@ test("functionCharts.editingModel.connectOutput", function() {
   test.connectOutput(a, 0);
   model.transactionModel.endTransaction();
 
-  deepEqual(functionChart.items.length, 3);
+  QUnit.assert.deepEqual(functionChart.items.length, 3);
   let junction = functionChart.items[1],
       wire = functionChart.items[2];
-  deepEqual(junction.elementKind, 'output');
-  deepEqual(test.getWireSrc(wire), a);
-  deepEqual(test.getWireDst(wire), junction);
+  QUnit.assert.deepEqual(junction.elementKind, 'output');
+  QUnit.assert.deepEqual(test.getWireSrc(wire), a);
+  QUnit.assert.deepEqual(test.getWireDst(wire), junction);
 
   model.transactionHistory.undo();
-  deepEqual(functionChart.items, [a]);
+  QUnit.assert.deepEqual(functionChart.items, [a]);
 });
 
-test("functionCharts.editingModel.getLabel", function() {
+QUnit.test("functionCharts.editingModel.getLabel", function() {
   const test = newTestEditingModel();
   const a = addElement(test, newInputJunction('[,v(foo)](bar)'));
-  deepEqual(test.getLabel(a), 'foo');
+  QUnit.assert.deepEqual(test.getLabel(a), 'foo');
 
   const b = addElement(test, newOutputJunction('[v(foo),](bar)'));
-  deepEqual(test.getLabel(b), 'foo');
+  QUnit.assert.deepEqual(test.getLabel(b), 'foo');
 
   const c = addElement(test, newLiteral(0));
-  deepEqual(test.getLabel(c), '0');
+  QUnit.assert.deepEqual(test.getLabel(c), '0');
 });
 
-test("functionCharts.editingModel.setLabel", function() {
+QUnit.test("functionCharts.editingModel.setLabel", function() {
   const test = newTestEditingModel(),
         dataModel = test.model.dataModel;
   const input = addElement(test, newInputJunction('[,*]'));
-  deepEqual(test.setLabel(input, 'f'), '[,*(f)]');
-  deepEqual(test.setLabel(input, ''), '[,*]');
+  QUnit.assert.deepEqual(test.setLabel(input, 'f'), '[,*(f)]');
+  QUnit.assert.deepEqual(test.setLabel(input, ''), '[,*]');
   input.master = '[,*(f)]';
   dataModel.initialize(input);
-  deepEqual(test.setLabel(input, 'bar'), '[,*(bar)]');
-  deepEqual(test.setLabel(input, ''), '[,*]');
+  QUnit.assert.deepEqual(test.setLabel(input, 'bar'), '[,*(bar)]');
+  QUnit.assert.deepEqual(test.setLabel(input, ''), '[,*]');
 
   const literal = addElement(test, newLiteral(0));
-  deepEqual(test.setLabel(literal, '1'), '[,v(1)]');
+  QUnit.assert.deepEqual(test.setLabel(literal, '1'), '[,v(1)]');
 
   const output = addElement(test, newOutputJunction('[*,]'));
-  deepEqual(test.setLabel(output, 'f'), '[*(f),]');
-  deepEqual(test.setLabel(output, ''), '[*,]');
+  QUnit.assert.deepEqual(test.setLabel(output, 'f'), '[*(f),]');
+  QUnit.assert.deepEqual(test.setLabel(output, ''), '[*,]');
   output.master = '[*(f),]';
   dataModel.initialize(output);
-  deepEqual(test.setLabel(output, 'bar'), '[*(bar),]');
-  deepEqual(test.setLabel(output, ''), '[*,]');
+  QUnit.assert.deepEqual(test.setLabel(output, 'bar'), '[*(bar),]');
+  QUnit.assert.deepEqual(test.setLabel(output, ''), '[*,]');
 
   const element = addElement(test, newTypedElement('[vv,vv]'));
-  deepEqual(test.setLabel(element, 'f'), '[vv,vv](f)');
-  deepEqual(test.setLabel(element, ''), '[vv,vv]');
+  QUnit.assert.deepEqual(test.setLabel(element, 'f'), '[vv,vv](f)');
+  QUnit.assert.deepEqual(test.setLabel(element, ''), '[vv,vv]');
   element.master = '[vv,vv](f)';
   dataModel.initialize(element);
-  deepEqual(test.setLabel(element, 'bar'), '[vv,vv](bar)');
-  deepEqual(test.setLabel(element, ''), '[vv,vv]');
+  QUnit.assert.deepEqual(test.setLabel(element, 'bar'), '[vv,vv](bar)');
+  QUnit.assert.deepEqual(test.setLabel(element, ''), '[vv,vv]');
 });
 
-test("functionCharts.editingModel.changeType", function() {
+QUnit.test("functionCharts.editingModel.changeType", function() {
   const test = newTestEditingModel(),
         dataModel = test.model.dataModel;
   let input = addElement(test, newInputJunction('[,*(f)]'));
-  deepEqual(test.changeType(input, '[v,v]'), '[,[v,v](f)]');
-  deepEqual(test.changeType(input, '*'), '[,*(f)]');
+  QUnit.assert.deepEqual(test.changeType(input, '[v,v]'), '[,[v,v](f)]');
+  QUnit.assert.deepEqual(test.changeType(input, '*'), '[,*(f)]');
   input.master = '[,[v,v](f)]';
   dataModel.initialize(input);
-  deepEqual(test.changeType(input, '*'), '[,*(f)]');
-  deepEqual(test.changeType(input, 'v'), '[,v(f)]');
+  QUnit.assert.deepEqual(test.changeType(input, '*'), '[,*(f)]');
+  QUnit.assert.deepEqual(test.changeType(input, 'v'), '[,v(f)]');
 
   let output = addElement(test, newOutputJunction('[*(f),]'));
-  deepEqual(test.changeType(output, '[v,v]'), '[[v,v](f),]');
-  deepEqual(test.changeType(output, '*'), '[*(f),]');
+  QUnit.assert.deepEqual(test.changeType(output, '[v,v]'), '[[v,v](f),]');
+  QUnit.assert.deepEqual(test.changeType(output, '*'), '[*(f),]');
   output.master = '[[v,v](f),]';
   dataModel.initialize(output);
-  deepEqual(test.changeType(output, '*'), '[*(f),]');
-  deepEqual(test.changeType(output, 'v'), '[v(f),]');
+  QUnit.assert.deepEqual(test.changeType(output, '*'), '[*(f),]');
+  QUnit.assert.deepEqual(test.changeType(output, 'v'), '[v(f),]');
 });
 
-test("functionCharts.editingModel.completeGroup", function() {
+QUnit.test("functionCharts.editingModel.completeGroup", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -536,16 +536,16 @@ test("functionCharts.editingModel.completeGroup", function() {
   test.completeGroup([a, b]);
   model.transactionModel.endTransaction();
 
-  deepEqual(items.length, 11);
-  deepEqual(items[0], a);
-  deepEqual(items[1], b);
-  deepEqual(items[2], wire);
+  QUnit.assert.deepEqual(items.length, 11);
+  QUnit.assert.deepEqual(items[0], a);
+  QUnit.assert.deepEqual(items[1], b);
+  QUnit.assert.deepEqual(items[2], wire);
 
   model.transactionHistory.undo();
-  deepEqual(items, [a, b, wire]);
+  QUnit.assert.deepEqual(items, [a, b, wire]);
 });
 
-test("functionCharts.editingModel.openElements", function() {
+QUnit.test("functionCharts.editingModel.openElements", function() {
   const test = newTestEditingModel(),
         items = test.model.root.items,
         a = addElement(test, newTypedElement('[vv,v]')),
@@ -553,18 +553,18 @@ test("functionCharts.editingModel.openElements", function() {
         wire = addWire(test, a, 0, b, 1);
   // Open element #2.
   test.openElements([b]);
-  ok(items.includes(a));
-  ok(items.includes(wire));
-  deepEqual(items.length, 3);
-  deepEqual(test.getWireSrc(wire), a);
-  deepEqual(wire.srcPin, 0);
-  deepEqual(test.getWireDst(wire), items[1]);
-  deepEqual(wire.dstPin, 1);
+  QUnit.assert.ok(items.includes(a));
+  QUnit.assert.ok(items.includes(wire));
+  QUnit.assert.deepEqual(items.length, 3);
+  QUnit.assert.deepEqual(test.getWireSrc(wire), a);
+  QUnit.assert.deepEqual(wire.srcPin, 0);
+  QUnit.assert.deepEqual(test.getWireDst(wire), items[1]);
+  QUnit.assert.deepEqual(wire.dstPin, 1);
   let openElement = items[1];
-  deepEqual(openElement.type, '[v(a)v(b)[vv,v],v(c)]');
+  QUnit.assert.deepEqual(openElement.type, '[v(a)v(b)[vv,v],v(c)]');
 });
 
-test("functionCharts.editingModel.replaceElement", function() {
+QUnit.test("functionCharts.editingModel.replaceElement", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -578,23 +578,23 @@ test("functionCharts.editingModel.replaceElement", function() {
   test.replaceElement(a, replacement1);
   model.transactionModel.endTransaction();
 
-  deepEqual(items, [replacement1, b, wire, replacement2]);
-  deepEqual(test.getWireSrc(wire), replacement1);
-  deepEqual(wire.srcPin, 0);
+  QUnit.assert.deepEqual(items, [replacement1, b, wire, replacement2]);
+  QUnit.assert.deepEqual(test.getWireSrc(wire), replacement1);
+  QUnit.assert.deepEqual(wire.srcPin, 0);
 
   model.transactionModel.beginTransaction();
   // Replace b with replacement2. The wire should be disconnected.
   test.replaceElement(b, replacement2);
   model.transactionModel.endTransaction();
 
-  deepEqual(items, [replacement1, replacement2]);
+  QUnit.assert.deepEqual(items, [replacement1, replacement2]);
 
   model.transactionHistory.undo();
   model.transactionHistory.undo();
-  deepEqual(items, [a, b, wire, replacement1, replacement2]);
+  QUnit.assert.deepEqual(items, [a, b, wire, replacement1, replacement2]);
 });
 
-test("functionCharts.editingModel.build", function() {
+QUnit.test("functionCharts.editingModel.build", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -609,14 +609,14 @@ test("functionCharts.editingModel.build", function() {
   const groupElement = test.build([input1, input2, elem, output]);
   model.transactionModel.endTransaction();
 
-  deepEqual(items, [groupElement]);
-  deepEqual(groupElement.type, '[vv(f),v]');
+  QUnit.assert.deepEqual(items, [groupElement]);
+  QUnit.assert.deepEqual(groupElement.type, '[vv(f),v]');
 
   model.transactionHistory.undo();
-  deepEqual(items, [elem, input1, input2, output, wire1, wire2, wire3]);
+  QUnit.assert.deepEqual(items, [elem, input1, input2, output, wire1, wire2, wire3]);
 });
 
-test("functionCharts.editingModel.wireConsistency", function() {
+QUnit.test("functionCharts.editingModel.wireConsistency", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -629,13 +629,13 @@ test("functionCharts.editingModel.wireConsistency", function() {
   test.deleteItem(a);
   model.transactionModel.endTransaction();
 
-  deepEqual(items, [b]);
+  QUnit.assert.deepEqual(items, [b]);
 
   model.transactionHistory.undo();
-  deepEqual(items, [a, b, wire]);
+  QUnit.assert.deepEqual(items, [a, b, wire]);
 });
 
-test("functionCharts.editingModel.wireRollback", function() {
+QUnit.test("functionCharts.editingModel.wireRollback", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -648,12 +648,12 @@ test("functionCharts.editingModel.wireRollback", function() {
   model.observableModel.changeValue(wire, 'dstId', model.dataModel.getId(b));
   model.observableModel.changeValue(wire, 'dstPin', 0);
   model.transactionModel.cancelTransaction();
-  ok(model.functionChartModel.checkConsistency());
+  QUnit.assert.ok(model.functionChartModel.checkConsistency());
 
-  deepEqual(items, [a, b]);
+  QUnit.assert.deepEqual(items, [a, b]);
 });
 
-test("functionCharts.editingModel.groupConsistency", function() {
+QUnit.test("functionCharts.editingModel.groupConsistency", function() {
   const test = newTestEditingModel(),
         model = test.model,
         items = model.root.items,
@@ -664,13 +664,13 @@ test("functionCharts.editingModel.groupConsistency", function() {
   const group = test.build([a]),
         inst1 = test.newElement(group.type, 10, 20),
         inst2 = test.newElement(group.type, 30, 40);
-  deepEqual(group.items, [a]);
+  QUnit.assert.deepEqual(group.items, [a]);
   test.createGroupInstance(group, inst1);
   test.addItem(inst1, group);
   test.createGroupInstance(group, inst2);
-  deepEqual(inst1.groupId, inst2.groupId);
+  QUnit.assert.deepEqual(inst1.groupId, inst2.groupId);
   // TODO update group items too.
-  // deepEqual(inst1.definitionId, inst2.definitionId);
+  // QUnit.assert.deepEqual(inst1.definitionId, inst2.definitionId);
   test.addItem(inst2, group);
   model.transactionModel.endTransaction();
 
@@ -680,7 +680,7 @@ test("functionCharts.editingModel.groupConsistency", function() {
   const wire1 = test.addItem(test.newWire(inst1.id, 0, inst2.id, 0));
   model.transactionModel.endTransaction();
 
-  deepEqual(group.items, [a, inst1, inst2, wire1]);
+  QUnit.assert.deepEqual(group.items, [a, inst1, inst2, wire1]);
 
   // Add a wire that changes the group type. The instances are replaced.
   model.transactionModel.beginTransaction();
@@ -690,14 +690,14 @@ test("functionCharts.editingModel.groupConsistency", function() {
   const inst1b = group.items[1];
   const inst2b = group.items[2];
   const wire1b = group.items[3];
-  deepEqual(inst1b.type, '[vv,]');
-  deepEqual(inst2b.type, '[vv,]');
-  deepEqual(group.items, [a, inst1b, inst2b, wire1b]);
+  QUnit.assert.deepEqual(inst1b.type, '[vv,]');
+  QUnit.assert.deepEqual(inst2b.type, '[vv,]');
+  QUnit.assert.deepEqual(group.items, [a, inst1b, inst2b, wire1b]);
 
   // Undo adding both wires.
   model.transactionHistory.undo();
   model.transactionHistory.undo();
-  deepEqual(group.items, [a, inst1, inst2]);
+  QUnit.assert.deepEqual(group.items, [a, inst1, inst2]);
 
   // Try to create a type-changing wire again.
   model.transactionModel.beginTransaction();
@@ -707,7 +707,7 @@ test("functionCharts.editingModel.groupConsistency", function() {
 
 // TODO fix these tests to work with new grouping
 
-// test("functionCharts.editingModel.findSrcType", function() {
+// QUnit.test("functionCharts.editingModel.findSrcType", function() {
 //   let test = newTestEditingModel(),
 //       functionChart = test.model,
 //       items = functionChart.root.items,
@@ -730,7 +730,7 @@ test("functionCharts.editingModel.groupConsistency", function() {
 
 //   test.createGroupInstance(group, elem3);
 //   let actualType = test.findSrcType(wire3)
-//   deepEqual(actualType, expectedType);
+//   QUnit.assert.deepEqual(actualType, expectedType);
 // });
 //       item = mouseHitInfo.item = {
 //         kind: 'element',
@@ -741,7 +741,7 @@ test("functionCharts.editingModel.groupConsistency", function() {
 //         state: 'palette',
 //       };
 
-// test("functionCharts.editingModel.findDstType", function() {
+// QUnit.test("functionCharts.editingModel.findDstType", function() {
 //   let test = newTestEditingModel(),
 //       functionChart = test.model,
 //       items = functionChart.root.items,
@@ -757,7 +757,7 @@ test("functionCharts.editingModel.groupConsistency", function() {
 //       wire3 = addWire(test, elem3, 0, elem4, 0),
 //       actualType = test.findDstType(wire2);
 
-//   deepEqual(actualType, expectedType);
+//   QUnit.assert.deepEqual(actualType, expectedType);
 // });
 
 })();

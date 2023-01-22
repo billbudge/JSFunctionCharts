@@ -1,14 +1,14 @@
-// Circuits module.
+// FunctionCharts module.
 
 const functionCharts = (function() {
 'use strict';
 
-function isCircuit(item) {
-  return item.kind === 'circuit';
+function isFunctionChart(item) {
+  return item.kind === 'functionChart';
 }
 
 function isContainer(item) {
-  return item.kind === 'circuit' || item.kind === 'group';
+  return item.kind === 'functionChart' || item.kind === 'group';
 }
 
 function isElement(item) {
@@ -313,7 +313,7 @@ function getDefinition(item) {
 const _inputs = Symbol('inputs'),
       _outputs = Symbol('outputs');
 
-const circuitModel = (function() {
+const functionChartModel = (function() {
 
   const proto = {
     getInputs: function(element) {
@@ -511,13 +511,13 @@ const circuitModel = (function() {
     // May be called inside transactions, to update wires during drags.
     updateLayout: function() {
       const self = this,
-            circuitModel = this.model.circuitModel;
+            functionChartModel = this.model.functionChartModel;
       this.changedElements_.forEach(function(element) {
         function markWire(wire) {
           wire[_hasLayout] = false;
         }
-        circuitModel.forInputWires(element, markWire);
-        circuitModel.forOutputWires(element, markWire);
+        functionChartModel.forInputWires(element, markWire);
+        functionChartModel.forOutputWires(element, markWire);
       });
       this.changedElements_.clear();
     },
@@ -534,7 +534,7 @@ const circuitModel = (function() {
       do {
         item = ancestor;
         ancestor = hierarchicalModel.getParent(ancestor);
-      } while (ancestor && !isCircuit(ancestor));
+      } while (ancestor && !isFunctionChart(ancestor));
 
       if (isGroup(item)) {
         this.changedTopLevelGroups_.add(item);
@@ -622,8 +622,8 @@ const circuitModel = (function() {
   }
 
   function extend(model) {
-    if (model.circuitModel)
-      return model.circuitModel;
+    if (model.functionChartModel)
+      return model.functionChartModel;
 
     dataModels.observableModel.extend(model);
     dataModels.referencingModel.extend(model);
@@ -631,7 +631,7 @@ const circuitModel = (function() {
 
     let instance = Object.create(proto);
     instance.model = model;
-    instance.circuit = model.root;
+    instance.functionChart = model.root;
 
     instance.elementsAndGroups_ = new Set();
     instance.wires_ = new Set();
@@ -639,7 +639,7 @@ const circuitModel = (function() {
     instance.changedElements_ = new Set();
     instance.changedTopLevelGroups_ = new Set();
 
-    instance.circuit.items.forEach(item => instance.updateLayout_(item));
+    instance.functionChart.items.forEach(item => instance.updateLayout_(item));
 
     model.observableModel.addHandler('changed',
                                      change => instance.onChanged_(change));
@@ -658,14 +658,14 @@ const circuitModel = (function() {
     instance.getWireDst = model.referencingModel.getReferenceFn('dstId');
 
     // Initialize elements and wires.
-    visitItem(instance.circuit, function(element) {
+    visitItem(instance.functionChart, function(element) {
       instance.insertElement_(element);
     }, isElement);
-    visitItem(instance.circuit, function(wire) {
+    visitItem(instance.functionChart, function(wire) {
       instance.insertWire_(wire);
     }, isWire);
 
-    model.circuitModel = instance;
+    model.functionChartModel = instance;
     return instance;
   }
 
@@ -690,7 +690,7 @@ const editingModel = (function() {
     selectInteriorWires: function() {
       const model = this.model,
             selectionModel = model.selectionModel,
-            graphInfo = model.circuitModel.getSubgraphInfo(selectionModel.contents());
+            graphInfo = model.functionChartModel.getSubgraphInfo(selectionModel.contents());
       selectionModel.add(graphInfo.interiorWires);
     },
 
@@ -786,7 +786,7 @@ const editingModel = (function() {
         if (isElementOrGroup(copy)) {
           // De-palettize clone.
           copy.state = 'normal';
-          // Clone coordinates should be in circuit-space. Get global position
+          // Clone coordinates should be in functionChart-space. Get global position
           // from original item.
           const translation = translatableModel.getToParent(item, diagram);
           copy.x += translation.x;
@@ -804,7 +804,7 @@ const editingModel = (function() {
         parent = this.diagram;
       if (oldParent === parent)
         return;
-      if (isCircuit(parent) || isGroup(parent)) {
+      if (isFunctionChart(parent) || isGroup(parent)) {
         if (!Array.isArray(parent.items))
           model.observableModel.changeValue(parent, 'items', []);
       }
@@ -825,7 +825,7 @@ const editingModel = (function() {
     },
 
     addItems: function(items, parent) {
-      // Add elements and groups first, then wires, so circuitModel can update.
+      // Add elements and groups first, then wires, so functionChartModel can update.
       for (let item of items) {
         if (!isWire(item)) this.addItem(item, parent);
       }
@@ -837,7 +837,7 @@ const editingModel = (function() {
     replaceElement: function(element, newElement) {
       const self = this, model = this.model,
             observableModel = model.observableModel,
-            circuitModel = model.circuitModel,
+            functionChartModel = model.functionChartModel,
             type = getType(element),
             newId = model.dataModel.getId(newElement),
             newType = getType(newElement),
@@ -863,12 +863,12 @@ const editingModel = (function() {
               newType = globalTypeParser_.trimType(newPins[index].type);
         return type === '*' || type === newType;
       }
-      circuitModel.forInputWires(element, function(wire, pin) {
+      functionChartModel.forInputWires(element, function(wire, pin) {
         if (canRewire(wire.dstPin, type.inputs, newType.inputs)) {
           dstChange.push(wire);
         }
       });
-      circuitModel.forOutputWires(element, function(wire, pin) {
+      functionChartModel.forOutputWires(element, function(wire, pin) {
         if (canRewire(wire.srcPin, type.outputs, newType.outputs)) {
           srcChange.push(wire);
         }
@@ -910,12 +910,12 @@ const editingModel = (function() {
     completeGroup: function(elements) {
       const self = this,
             model = this.model,
-            circuitModel = model.circuitModel;
+            functionChartModel = model.functionChartModel;
 
       // Add junctions for disconnected pins on elements.
       elements.forEach(function(element) {
-        const inputs = circuitModel.getInputs(element),
-              outputs = circuitModel.getOutputs(element);
+        const inputs = functionChartModel.getInputs(element),
+              outputs = functionChartModel.getOutputs(element);
         inputs.forEach(function(wire, pin) {
           if (!wire)
             self.connectInput(element, pin);
@@ -1045,8 +1045,8 @@ const editingModel = (function() {
     getGroupTypeInfo: function(items, group) {
       const self = this, model = this.model,
             dataModel = model.dataModel,
-            circuitModel = model.circuitModel,
-            graphInfo = model.circuitModel.getSubgraphInfo(items),
+            functionChartModel = model.functionChartModel,
+            graphInfo = model.functionChartModel.getSubgraphInfo(items),
             renderer = this.model.renderer,
             inputs = [], outputs = [],
             contextInputs = [];
@@ -1058,7 +1058,7 @@ const editingModel = (function() {
       function getInputType(input) {
         const srcPin = getType(input).outputs[0],
               srcType = self.getPinTypeWithName(srcPin),
-              wires = circuitModel.getOutputs(input)[0];
+              wires = functionChartModel.getOutputs(input)[0];
         if (!wires.length)
           return srcType;
         const label = srcType.substring(1);
@@ -1068,7 +1068,7 @@ const editingModel = (function() {
       function getOutputType(output) {
         const dstPin = getType(output).inputs[0],
               dstType = self.getPinTypeWithName(dstPin),
-              wire = circuitModel.getInputs(output)[0];
+              wire = functionChartModel.getInputs(output)[0];
         if (!wire)
           return dstType;
         const label = dstType.substring(1);
@@ -1092,8 +1092,8 @@ const editingModel = (function() {
           if (group && self.isInstanceOfGroup(item, group))
             return;
           const type = getType(item),
-                inputWires = circuitModel.getInputs(item),
-                outputWires = circuitModel.getOutputs(item);
+                inputWires = functionChartModel.getInputs(item),
+                outputWires = functionChartModel.getOutputs(item);
           type.inputs.forEach(function(pin, i) {
             if (!inputWires[i]) {
               const y = renderer.pinToPoint(item, i, true).y;
@@ -1175,7 +1175,7 @@ const editingModel = (function() {
           } else if (dst.passThroughs) {
             dst.passThroughs.forEach(function(passThrough) {
               if (passThrough[0] === wire.dstPin) {
-                let outgoingWires = circuitModel.getOutputs(dst)[passThrough[1]];
+                let outgoingWires = functionChartModel.getOutputs(dst)[passThrough[1]];
                 outgoingWires.forEach(wire => activeWires.push(wire));
               }
             });
@@ -1194,7 +1194,7 @@ const editingModel = (function() {
     build: function(items, parent) {
       const self = this,
             model = this.model,
-            graphInfo = model.circuitModel.getSubgraphInfo(items),
+            graphInfo = model.functionChartModel.getSubgraphInfo(items),
             extents = model.renderer.getUnionBounds(graphInfo.elementsAndGroups),
             spacing = this.theme.spacing,
             x = extents.x - spacing,
@@ -1229,7 +1229,7 @@ const editingModel = (function() {
     findSrcType: function(wire) {
       const self = this,
             model = this.model,
-            circuitModel = model.circuitModel,
+            functionChartModel = model.functionChartModel,
             activeWires = [wire];
       // TODO eliminate array and while; there can be only one pass through.
       while (activeWires.length) {
@@ -1246,7 +1246,7 @@ const editingModel = (function() {
             group.passThroughs.forEach(function(passThrough) {
               if (passThrough[1] === wire.srcPin) {
                 srcPin = group.inputs[passThrough[0]];
-                let incomingWire = circuitModel.getInputs(src)[passThrough[0]];
+                let incomingWire = functionChartModel.getInputs(src)[passThrough[0]];
                 if (incomingWire)
                   activeWires.push(incomingWire);
               }
@@ -1260,7 +1260,7 @@ const editingModel = (function() {
     findDstType: function(wire) {
       const self = this,
             model = this.model,
-            graphInfo = model.circuitModel.getGraphInfo(),
+            graphInfo = model.functionChartModel.getGraphInfo(),
             activeWires = [wire];
       while (activeWires.length) {
         wire = activeWires.pop();
@@ -1276,7 +1276,7 @@ const editingModel = (function() {
             group.passThroughs.forEach(function(passThrough) {
               if (passThrough[0] === wire.dstPin) {
                 dstPin = group.outputs[passThrough[1]];
-                let outgoingWires = circuitModel.getOutputs(dst)[passThrough[1]];
+                let outgoingWires = functionChartModel.getOutputs(dst)[passThrough[1]];
                 outgoingWires.forEach(wire => activeWires.push(wire));
               }
             });
@@ -1380,8 +1380,8 @@ const editingModel = (function() {
     doSelectConnectedElements: function(upstream) {
       let selectionModel = this.model.selectionModel,
           selection = selectionModel.contents(),
-          circuitModel = this.model.circuitModel,
-          newSelection = circuitModel.getConnectedElements(selection, upstream, true);
+          functionChartModel = this.model.functionChartModel,
+          newSelection = functionChartModel.getConnectedElements(selection, upstream, true);
       selectionModel.set(newSelection);
     },
 
@@ -1392,12 +1392,12 @@ const editingModel = (function() {
             hierarchicalModel = model.hierarchicalModel,
             selectionModel = model.selectionModel,
             observableModel = model.observableModel,
-            circuitModel = model.circuitModel;
+            functionChartModel = model.functionChartModel;
 
 // TODO don't mutate while iterating???
       let graphInfo, elementsAndGroups, wires;
       function refreshGraphInfo() {
-       graphInfo = model.circuitModel.getGraphInfo();
+       graphInfo = model.functionChartModel.getGraphInfo();
        elementsAndGroups = graphInfo.elementsAndGroups;
        wires = graphInfo.wires;
       }
@@ -1460,7 +1460,7 @@ const editingModel = (function() {
           refreshGraphInfo();
           return;
         }
-        // Make sure wires belong to lowest common container (circuit or group).
+        // Make sure wires belong to lowest common container (functionChart or group).
         const lca = hierarchicalModel.getLowestCommonAncestor(src, dst);
         if (self.getParent(wire) !== lca) {
           self.deleteItem(wire);
@@ -1469,7 +1469,7 @@ const editingModel = (function() {
         }
       });
 
-      assert(circuitModel.checkConsistency());
+      assert(functionChartModel.checkConsistency());
     },
   }
 
@@ -1504,7 +1504,7 @@ const editingModel = (function() {
     const canonicalInstanceModel =
         dataModels.canonicalInstanceModel.extend(model, canonicalImpl);
 
-    circuitModel.extend(model);
+    functionChartModel.extend(model);
 
     let instance = Object.create(proto);
     instance.model = model;
@@ -2206,7 +2206,7 @@ Editor.prototype.draw = function() {
       model = this.model,
       renderer = model.renderer;
   // Update wires as elements are dragged.
-  model.circuitModel.updateLayout();
+  model.functionChartModel.updateLayout();
   renderer.begin(ctx);
   canvasController.applyTransform();
 
@@ -2310,7 +2310,7 @@ Editor.prototype.hitTest = function(p) {
   model.selectionModel.forEach(function(item) {
     item => pushHit(renderer.hitTest(item, cp, cTol, normalMode));
   });
-  // Skip the root circuit, as hits there should go to the underlying canvas controller.
+  // Skip the root functionChart, as hits there should go to the underlying canvas controller.
   reverseVisitItems(diagram.items,
     item => pushHit(renderer.hitTest(item, cp, cTol, normalMode)), isWire);
   reverseVisitItems(diagram.items,
@@ -2333,7 +2333,7 @@ Editor.prototype.getFirstHit = function(hitList, filterFn) {
 }
 
 function isDraggable(hitInfo, model) {
-  return !isCircuit(hitInfo.item);
+  return !isFunctionChart(hitInfo.item);
 }
 
 function isInputPin(hitInfo, model) {
@@ -2783,7 +2783,7 @@ Editor.prototype.onKeyDown = function(e) {
           let blob = new Blob([serializedSVG], {
             type: 'text/plain'
           });
-          saveAs(blob, 'circuit.svg', true);
+          saveAs(blob, 'functionChart.svg', true);
           return true;
       }
     }
@@ -2792,7 +2792,7 @@ Editor.prototype.onKeyDown = function(e) {
 }
 
 return {
-  circuitModel,
+  functionChartModel,
   editingModel,
   getType,
 
@@ -2805,7 +2805,7 @@ return {
 
 const function_chart_data =
 {
-  "kind": "circuit",
+  "kind": "functionChart",
   "id": 1,
   "x": 0,
   "y": 0,
