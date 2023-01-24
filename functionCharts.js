@@ -1534,19 +1534,26 @@ const normalMode = 1,
     hotTrackMode = 3;
 
 class Renderer {
-  constructor(model, theme) {
-    this.model = model;
+  constructor(theme) {
     this.theme = extendTheme(theme);
+  }
+  extend(model) {
+    assert(model.hierarchicalModel);
+    assert(model.translatableModel);
+    assert(model.referencingModel);
+    assert(model.observableModel);
+    // A Renderer doesn't store any information on the model itself.
+  }
+  setModel(model) {
+    this.model = model;
+    model.renderer = this; // TODO eliminate this cyclic reference if possible.
 
-    const translatableModel = model.translatableModel,
-          referencingModel = model.referencingModel;
-
-    assert(translatableModel);
-    assert(referencingModel);
+    const translatableModel = model.translatableModel, referencingModel = model.referencingModel;
 
     this.translatableModel = translatableModel;
     this.referencingModel = referencingModel;
 
+    // TODO Make these functions global to the Statechart component.
     this.getWireSrc = referencingModel.getReferenceFn('srcId');
     this.getWireDst = referencingModel.getReferenceFn('dstId');
   }
@@ -2064,273 +2071,716 @@ class Renderer {
 
 //------------------------------------------------------------------------------
 
-function Editor(model, theme, textInputController) {
-  const self = this;
-  this.model = model;
-  this.diagram = model.root;
-  this.theme = extendTheme(theme);
-  this.textInputController = textInputController;
+  class Editor {
+    constructor(theme, canvasController, paletteController, propertyGridController) {
+      const self = this;
+      theme = extendTheme(theme);
+      this.theme = theme;
+      this.canvasController = canvasController;
+      this.paletteController = paletteController;
+      this.propertyGridController = propertyGridController;
+      this.fileController = new diagrams.FileController();
 
-  this.hitTolerance = 4;
+      this.hitTolerance = 8;
 
-  editingModel.extend(model, this.theme);
+      const renderer = new Renderer(theme);
+      this.renderer = renderer;
 
-  model.renderer = new Renderer(model, this.theme);
+      const junctions = [
+        {
+          kind: 'element',
+          elementKind: 'input',
+          type: inputElementType,
+        },
+        {
+          kind: 'element',
+          elementKind: 'output',
+          type: outputElementType,
+        },
+        {
+          kind: 'element',
+          elementKind: 'literal',
+          type: '[,v(0)]',
+        },
+      ];
 
-  let junctions = [
-    { kind: 'element',
-      elementKind: 'input',
-      type: inputElementType,
-    },
-    { kind: 'element',
-      elementKind: 'output',
-      type: outputElementType,
-    },
-    { kind: 'element',
-      elementKind: 'literal',
-      type: '[,v(0)]',
-    },
-  ];
-  this.junctions = junctions;
+      const unaryOps = ['!', '~', '-'];
+      const binaryOps = ['+', '-', '*', '/', '%', '==', '!=', '<', '<=', '>', '>=',
+        '|', '&', '||', '&&'];
 
-  let unaryOps = ['!', '~', '-' ];
-  let binaryOps = ['+', '-', '*', '/', '%', '==', '!=', '<', '<=', '>', '>=',
-                   '|', '&', '||', '&&'];
+      const primitives = [];
+      unaryOps.forEach(function (op) {
+        primitives.push({
+          kind: 'element',
+          type: '[v,v](' + op + ')',
+        });
+      });
+      binaryOps.forEach(function (op) {
+        primitives.push({
+          kind: 'element',
+          type: '[vv,v](' + op + ')',
+        });
+      });
+      // Just one ternary op for now, the conditional operator.
+      primitives.push({
+        kind: 'element',
+        type: '[vvv,v](?)',
+      });
 
-  let primitives = [];
-  unaryOps.forEach(function(op) {
-    primitives.push({
-      kind: 'element',
-      type: '[v,v](' + op + ')',
-    });
-  });
-  binaryOps.forEach(function(op) {
-    primitives.push({
-      kind: 'element',
-      type: '[vv,v](' + op + ')',
-    });
-  });
-  // Just one ternary op for now, the conditional operator.
-  primitives.push({
-      kind: 'element',
-      type: '[vvv,v](?)',
-  });
-
-  // Object definition.
-  primitives.push({
-      kind: 'element',
-      type: '[,v[v,v]](let)',
-  });
-  // Object adapter.
-  primitives.push({
-      kind: 'element',
-      type: '[v,[v,v[v,v]]]({})',
-  });
-  // Array adapter.
-  primitives.push({
-      kind: 'element',
-      type: '[v,v(n)[v,v[v,v]]]([])',
-  });
-  // // Set adapter.
-  // primitives.push({
-  //     kind: 'element',
-  //     type: '[,v(size)[v,v](add)[v,v](has)[v,v](delete)[,v](clear)](set)',
-  // });
-  // // Map adapter.
-  // primitives.push({
-  //     kind: 'element',
-  //     type: '[,v(size)[v,v](get)[vv,v](set)[v,v](has)[v,v](delete)[,v](clear)](map)',
-  // });
-  // // String adapter.
-  // primitives.push({
-  //     kind: 'element',
-  //     type: '[v,v(length)[vv,v](indexOf)[vv,v](lastIndexOf)[v,v](charAt)[vv,v](substring)](string)',
-  // });
-
-  this.primitives = primitives;
-}
-
-Editor.prototype.initialize = function(canvasController) {
-  const canvas = canvasController.canvas,
-        ctx = canvasController.ctx;
-  this.canvasController = canvasController;
-  this.canvas = canvas;
-  this.ctx = ctx;
-
-  let model = this.model,
-      renderer = model.renderer;
-
-  renderer.begin(ctx);
-
-  model.dataModel.initialize();
-
-  // Create an instance of every junction and literal.
-  let x = 16, y = 16, h = 0;
-  const spacing = 8;
-  this.junctions.forEach(function(junction) {
-    let item = Object.assign(junction);
-    item.x = x;
-    item.y = y;
-    item.state = 'palette';
-    model.editingModel.newItem(item);
-    model.editingModel.addItem(item);
-    let r = renderer.getBounds(item);
-    x += r.w + spacing;
-    h = Math.max(h, r.h);
-  });
-  y += h + spacing;
-
-  // Create an instance of every primitive.
-  x = 16, h = 0;
-  this.primitives.forEach(function(primitive) {
-    let item = Object.assign(primitive);
-    item.x = x;
-    item.y = y;
-    item.state = 'palette';
-    model.editingModel.newItem(item);
-    model.editingModel.addItem(item);
-    let r = renderer.getBounds(item);
-    x += r.w + spacing;
-    h = Math.max(h, r.h);
-    if (x > 208) {
-      x = 16, y += h + spacing, h = 0;
+      // Object definition.
+      primitives.push({
+        kind: 'element',
+        type: '[,v[v,v]](let)',
+      });
+      // Object adapter.
+      primitives.push({
+        kind: 'element',
+        type: '[v,[v,v[v,v]]]({})',
+      });
+      // Array adapter.
+      primitives.push({
+        kind: 'element',
+        type: '[v,v(n)[v,v[v,v]]]([])',
+      });
+      // // Set adapter.
+      // primitives.push({
+      //     kind: 'element',
+      //     type: '[,v(size)[v,v](add)[v,v](has)[v,v](delete)[,v](clear)](set)',
+      // });
+      // // Map adapter.
+      // primitives.push({
+      //     kind: 'element',
+      //     type: '[,v(size)[v,v](get)[vv,v](set)[v,v](has)[v,v](delete)[,v](clear)](map)',
+      // });
+      // // String adapter.
+      // primitives.push({
+      //     kind: 'element',
+      //     type: '[v,v(length)[vv,v](indexOf)[vv,v](lastIndexOf)[v,v](charAt)[vv,v](substring)](string)',
+      // });
+      this.junctions = junctions;
+      this.primitives = primitives;
+      this.palette = junctions.concat(primitives);
     }
-  });
-  renderer.end();
-}
+    initializeModel(model) {
+      const self = this;
 
-Editor.prototype.draw = function() {
-  let diagram = this.diagram,
-      ctx = this.ctx,
-      canvasController = this.canvasController,
-      model = this.model,
-      renderer = model.renderer;
-  // Update wires as elements are dragged.
-  model.functionChartModel.updateLayout();
-  renderer.begin(ctx);
-  canvasController.applyTransform();
+      functionChartModel.extend(model);
+      editingModel.extend(model);
+      translatableModel.extend(model);
 
-  // Draw registration frame for generating screen shots.
-  ctx.strokeStyle = renderer.theme.dimColor;
-  ctx.lineWidth = 0.5;
-  ctx.strokeRect(300, 10, 700, 300);
+      this.renderer.extend(model);
 
-  visitItems(diagram.items,
-    function(item) {
-      renderer.draw(item, normalMode);
-    }, isElementOrGroup);
-  visitItems(diagram.items,
-    function(wire) {
-      renderer.draw(wire, normalMode);
-    }, isWire);
+      model.dataModel.initialize();
+    }
+    setModel(model) {
+      const functionChart = model.root,
+            renderer = this.renderer;
 
-  model.selectionModel.forEach(function(item) {
-    renderer.draw(item, highlightMode);
-  });
+      this.model = model;
+      this.functionChart = functionChart;
 
-  if (this.hotTrackInfo) {
-    let hitInfo = this.hotTrackInfo,
-        item = hitInfo.item,
-        input = hitInfo.input,
-        output = hitInfo.output;
-    if (input !== undefined || output !== undefined) {
-      renderer.drawElementPin(item, input, output, hotTrackMode);
-    } else {
-      renderer.draw(item, hotTrackMode);
+      this.changedItems_.clear();
+      this.changedTopLevelStates_.clear();
+
+      renderer.setModel(model);
+
+      // Layout any items in the functionChart.
+      renderer.begin(this.canvasController.getCtx());
+      reverseVisitItem(functionChart, item => renderer.layout(item));
+      renderer.end();
+    }
+    initialize(canvasController) {
+      if (canvasController === this.canvasController) {
+      } else {
+        assert(canvasController === this.paletteController);
+        const renderer = this.renderer;
+        renderer.begin(canvasController.getCtx());
+
+        // Position every junction and literal.
+        let x = 16, y = 16, h = 0;
+        const spacing = 8;
+        this.junctions.forEach(function (junction) {
+          junction.x = x;
+          junction.y = y;
+          let r = renderer.getBounds(junction);
+          x += r.w + spacing;
+          h = Math.max(h, r.h);
+        });
+        y += h + spacing;
+
+        // Position every primitive.
+        x = 16, h = 0;
+        this.primitives.forEach(function (primitive) {
+          primitive.x = x;
+          primitive.y = y;
+          let r = renderer.getBounds(primitive);
+          x += r.w + spacing;
+          h = Math.max(h, r.h);
+          if (x > 208) {
+            x = 16, y += h + spacing, h = 0;
+          }
+        });
+        // Layout the palette items.
+        renderer.begin(this.paletteController.getCtx());
+        reverseVisitItems(this.palette.items, item => renderer.layout(item));
+        // Draw the palette items.
+        visitItems(this.palette.items, item => renderer.draw(item));
+        renderer.end();
+      }
+    }
+    draw(canvasController) {
+      const model = this.model, renderer = model.renderer;
+
+      if (canvasController === this.canvasController) {
+        const ctx = this.canvasController.getCtx(),
+              diagram = this.diagram;
+        renderer.begin(ctx);
+        canvasController.applyTransform();
+        model.functionChartModel.updateLayout();
+        // // Draw registration frame for generating screen shots.
+        // ctx.strokeStyle = renderer.theme.dimColor;
+        // ctx.lineWidth = 0.5;
+        // ctx.strokeRect(300, 10, 700, 300);
+        visitItems(diagram.items,
+          function (item) {
+            renderer.draw(item, normalMode);
+          }, isElementOrGroup);
+        visitItems(diagram.items,
+          function (wire) {
+            renderer.draw(wire, normalMode);
+          }, isWire);
+
+        model.selectionModel.forEach(function (item) {
+          renderer.draw(item, highlightMode);
+        });
+
+        if (this.hotTrackInfo) {
+          let hitInfo = this.hotTrackInfo, item = hitInfo.item, input = hitInfo.input, output = hitInfo.output;
+          if (input !== undefined || output !== undefined) {
+            renderer.drawElementPin(item, input, output, hotTrackMode);
+          } else {
+            renderer.draw(item, hotTrackMode);
+          }
+        }
+        let hoverHitInfo = this.hoverHitInfo;
+        if (hoverHitInfo) {
+          renderer.drawHoverInfo(hoverHitInfo.item, hoverHitInfo.p);
+        }
+        renderer.end();
+      } else if (canvasController === this.paletteController) {
+        // Palette drawing occurs during drag and drop. If the palette has the drag,
+        // draw the canvas underneath so the new object will appear on the canvas.
+        this.canvasController.draw();
+        const ctx = this.paletteController.getCtx();
+        renderer.begin(ctx);
+        canvasController.applyTransform();
+        visitItems(this.palette, function (item) {
+          renderer.draw(item, printMode);
+        });
+        // Draw the new object in the palette. Translate object to palette coordinates.
+        const offset = canvasController.offsetToOtherCanvas(this.canvasController);
+        ctx.translate(offset.x, offset.y);
+        model.selectionModel.forEach(function (item) {
+          renderer.draw(item, normalMode);
+          renderer.draw(item, highlightMode);
+        });
+        renderer.end();
+      }
+    }
+    print() {
+      let diagram = this.diagram,
+          canvasController = this.canvasController,
+          model = this.model,
+          renderer = this.renderer;
+
+      // Calculate document bounds.
+      const elements = new Array();
+      visitItems(diagram.items, function (item) {
+        elements.push(item);
+      }, isNonTransition);
+
+      const bounds = renderer.getBounds(elements);
+      // Adjust all edges 1 pixel out.
+      const ctx = new C2S(bounds.width * 2 + 4, bounds.height * 2 + 4);
+      ctx.scale(1.5, 1.5);
+      ctx.translate(-bounds.x + 2, -bounds.y + 2);
+
+      renderer.begin(ctx);
+      canvasController.applyTransform();
+
+      visitItems(diagram.items,
+        function (item) {
+          renderer.draw(item, printMode);
+        }, isSelectedElementOrGroup);
+      visitItems(diagram.items,
+        function (wire) {
+          renderer.draw(wire, printMode);
+        }, isSelectedWire);
+
+      renderer.end();
+
+      // Write out the SVG file.
+      const serializedSVG = ctx.getSerializedSvg();
+      const blob = new Blob([serializedSVG], {
+        type: 'text/plain'
+      });
+      saveAs(blob, 'functionChart.svg', true);
+    }
+    getCanvasPosition(canvasController, p) {
+      // When dragging from the palette, convert the position from pointer events
+      // into the canvas space to render the drag and drop.
+      return this.canvasController.viewToOtherCanvasView(canvasController, p);
+    }
+    hitTestCanvas(canvasController, p) {
+      const model = this.model,
+            renderer = this.renderer,
+            tol = this.hitTolerance,
+            diagram = this.diagram,
+            cp = this.getCanvasPosition(canvasController, p),
+            ctx = canvasController.getCtx(),
+            hitList = [];
+      function pushHit(info) {
+        if (info)
+          hitList.push(info);
+      }
+      renderer.begin(ctx);
+      model.selectionModel.forEach(function (item) {
+        item => pushHit(renderer.hitTest(item, cp, tol, normalMode));
+      });
+      // Skip the root functionChart, as hits there should go to the underlying canvas controller.
+      reverseVisitItems(diagram.items,
+        item => pushHit(renderer.hitTest(item, cp, cTol, normalMode)), isWire);
+      reverseVisitItems(diagram.items,
+        item => pushHit(renderer.hitTest(item, cp, cTol, normalMode)), isElementOrGroup);
+      renderer.end();
+      return hitList;
+
+    }
+    hitTestPalette(canvasController, p) {
+      const renderer = this.renderer,
+            tol = this.hitTolerance,
+            ctx = canvasController.getCtx(),
+            hitList = [];
+      function pushInfo(info) {
+        if (info)
+          hitList.push(info);
+      }
+      renderer.begin(ctx);
+      reverseVisitItems(this.palette, function (item) {
+        pushInfo(renderer.hitTest(item, p, tol, printMode));
+      }, isNonTransition);
+      renderer.end();
+      return hitList;
+    }
+    getFirstHit(hitList, filterFn) {
+      if (hitList) {
+        let model = this.model, length = hitList.length;
+        for (let i = 0; i < length; i++) {
+          let hitInfo = hitList[i];
+          if (filterFn(hitInfo, model))
+            return hitInfo;
+        }
+      }
+      return null;
+    }
+    setPropertyGrid() {
+      const model = this.model,
+            item = model.selectionModel.lastSelected(),
+            type = item ? item.type : undefined;
+      this.propertyGridController.show(type, item);
+    }
+    onClick(canvasController, alt) {
+      const model = this.model,
+            selectionModel = model.selectionModel,
+            editingModel = model.editingModel,
+            shiftKeyDown = this.canvasController.shiftKeyDown,
+            cmdKeyDown = this.canvasController.cmdKeyDown;
+
+      let hitList, inPalette;
+      if (canvasController === this.paletteController) {
+        hitList = this.hitTestPalette(cp);
+        inPalette = true;
+      } else {
+        assert(canvasController === this.canvasController);
+        hitList = this.hitTestCanvas(cp);
+        inPalette = false;
+      }
+
+      const mouseHitInfo = this.mouseHitInfo = this.getFirstHit(hitList, isDraggable);
+      if (mouseHitInfo) {
+        let item = mouseHitInfo.item;
+        if (mouseHitInfo.newGroupInstanceInfo) {
+          // Create a temporary palette element that will create the new instance.
+          const group = mouseHitInfo.item, newGroupInstanceInfo = mouseHitInfo.newGroupInstanceInfo;
+          mouseHitInfo.group = item;
+          item = mouseHitInfo.item = {
+            kind: 'element',
+            x: newGroupInstanceInfo.x,
+            y: newGroupInstanceInfo.y,
+            type: group.type,
+            [_type]: getType(group),
+            state: 'palette',
+          };
+        }
+        if (cmdKeyDown || inPalette) {
+          mouseHitInfo.moveCopy = true;
+          // No wire dragging in this mode.
+          mouseHitInfo.input = mouseHitInfo.output = undefined;
+        }
+        selectionModel.select(item, shiftKeyDown);
+      } else {
+        if (!shiftKeyDown)
+          selectionModel.clear();
+      }
+      this.setEditableText();
+      return mouseHitInfo !== null;
+    }
+    onBeginDrag(canvasController) {
+      const mouseHitInfo = this.mouseHitInfo;
+      if (!mouseHitInfo)
+        return false;
+
+      const model = this.model,
+            selectionModel = model.selectionModel,
+            editingModel = model.editingModel,
+            p0 = canvasController.getInitialPointerPosition(),
+            dragItem = mouseHitInfo.item;
+      let newWire, drag;
+      if (mouseHitInfo.input !== undefined) {
+        // Wire from input pin.
+        const elementId = model.dataModel.getId(dragItem), cp0 = canvasController.viewToCanvas(p0);
+        // Start the new wire as connecting the dst element to nothing.
+        newWire = {
+          kind: 'wire',
+          dstId: elementId,
+          dstPin: mouseHitInfo.input,
+          [_p1]: cp0,
+        };
+        drag = {
+          kind: connectWireSrc,
+          name: 'Add new wire',
+          isNewWire: true,
+        };
+      } else if (mouseHitInfo.output !== undefined) {
+        // Wire from output pin.
+        const elementId = model.dataModel.getId(dragItem), cp0 = canvasController.viewToCanvas(p0);
+        // Start the new wire as connecting the src element to nothing.
+        newWire = {
+          kind: 'wire',
+          srcId: elementId,
+          srcPin: mouseHitInfo.output,
+          [_p2]: cp0,
+        };
+        drag = {
+          kind: connectWireDst,
+          name: 'Add new wire',
+          isNewWire: true,
+        };
+      } else {
+        switch (dragItem.kind) {
+          case 'element':
+          case 'group':
+            if (mouseHitInfo.moveCopy) {
+              drag = { kind: moveCopySelection, name: 'Move copy of selection' };
+            } else {
+              drag = { kind: moveSelection, name: 'Move selection' };
+            }
+            break;
+          case 'wire':
+            if (mouseHitInfo.p1)
+              drag = { kind: connectWireSrc, name: 'Edit wire' };
+            else if (mouseHitInfo.p2)
+              drag = { kind: connectWireDst, name: 'Edit wire' };
+            break;
+        }
+      }
+
+      this.drag = drag;
+      if (drag) {
+        if (drag.kind === moveSelection || drag.kind === moveCopySelection) {
+          editingModel.selectInteriorWires();
+          editingModel.reduceSelection();
+          let items = selectionModel.contents();
+          drag.isSingleElement = items.length === 1 && isElement(items[0]);
+        }
+        model.transactionModel.beginTransaction(drag.name);
+        if (newWire) {
+          drag.item = newWire;
+          editingModel.newItem(newWire);
+          editingModel.addItem(newWire);
+          selectionModel.set(newWire);
+        } else {
+          drag.item = dragItem;
+          if (mouseHitInfo.moveCopy) {
+            const map = new Map(), copies = editingModel.copyItems(selectionModel.contents(), map);
+            if (drag.isSingleElement && mouseHitInfo.newGroupInstanceInfo) {
+              editingModel.createGroupInstance(mouseHitInfo.group, copies[0]);
+            }
+            editingModel.addItems(copies);
+            selectionModel.set(copies);
+          }
+        }
+      }
+    }
+    onDrag(canvasController) {
+      const drag = this.drag;
+      if (!drag)
+        return;
+      const model = this.model,
+            dataModel = model.dataModel,
+            observableModel = model.observableModel,
+            transactionModel = model.transactionModel,
+            selectionModel = model.selectionModel,
+            p0 = canvasController.getInitialPointerPosition(),
+            cp0 = this.getCanvasPosition(canvasController, p0),
+            p = canvasController.getCurrentPointerPosition(),
+            cp = this.getCanvasPosition(canvasController, p),
+            dragItem = drag.item,
+            hitList = this.hitTestCanvas(p);
+      let hitInfo;
+      switch (drag.kind) {
+        case moveSelection:
+        case moveCopySelection:
+          if (isElementOrGroup(dragItem)) {
+            const filter = drag.isSingleElement ?
+              isContainerTargetOrElementSlot : isContainerTarget;
+            hitInfo = this.getFirstHit(hitList, filter);
+            selectionModel.forEach(function (item) {
+              if (isElementOrGroup(item)) {
+                let snapshot = transactionModel.getSnapshot(item);
+                if (snapshot) {
+                  let dx = cp.x - cp0.x, dy = cp.y - cp0.y;
+                  observableModel.changeValue(item, 'x', snapshot.x + dx);
+                  observableModel.changeValue(item, 'y', snapshot.y + dy);
+                }
+              }
+            });
+          }
+          break;
+        case connectWireSrc:
+          hitInfo = this.getFirstHit(hitList, isOutputPin);
+          const srcId = hitInfo ? dataModel.getId(hitInfo.item) : 0; // 0 is invalid id.
+          assert(isWire(dragItem));
+          observableModel.changeValue(dragItem, 'srcId', srcId);
+          if (srcId) {
+            observableModel.changeValue(dragItem, 'srcPin', hitInfo.output);
+            dragItem[_p1] = undefined;
+          } else {
+            // Change private property through model to update observers.
+            observableModel.changeValue(dragItem, _p1, cp);
+          }
+          break;
+        case connectWireDst:
+          hitInfo = this.getFirstHit(hitList, isInputPin);
+          const dstId = hitInfo ? dataModel.getId(hitInfo.item) : 0; // 0 is invalid id.
+          assert(isWire(dragItem));
+          observableModel.changeValue(dragItem, 'dstId', dstId);
+          if (dstId) {
+            observableModel.changeValue(dragItem, 'dstPin', hitInfo.input);
+            dragItem[_p2] = undefined;
+          } else {
+            // Change private property through model to update observers.
+            observableModel.changeValue(dragItem, _p2, cp);
+          }
+          break;
+      }
+
+      this.hotTrackInfo = (hitInfo && hitInfo.item !== this.diagram) ? hitInfo : null;
+    }
+    onEndDrag(canvasController) {
+      let drag = this.drag;
+      if (!drag)
+        return;
+      const dragItem = drag.item,
+            model = this.model,
+            diagram = this.diagram,
+            selectionModel = model.selectionModel,
+            transactionModel = model.transactionModel,
+            editingModel = model.editingModel,
+            p = canvasController.getCurrentPointerPosition();
+
+      switch (drag.kind) {
+        case connectWireSrc:
+        case connectWireDst:
+          if (drag.isNewWire) {
+            // Coalesce the creation and editing of the dragged wire into an
+            // insertion of a new wire.
+            const src = editingModel.getWireSrc(dragItem), dst = editingModel.getWireDst(dragItem), srcId = dragItem.srcId, srcPin = dragItem.srcPin, dstId = dragItem.dstId, dstPin = dragItem.dstPin;
+            selectionModel.clear();
+            transactionModel.cancelTransaction();
+            transactionModel.beginTransaction('Add new wire');
+            if (!src) {
+              // Add the appropriate source junction.
+              const connection = editingModel.connectInput(dst, dstPin, p);
+              selectionModel.set(connection.junction, connection.wire);
+            } else if (!dst) {
+              const srcType = getType(src), pinIndex = srcPin, pin = srcType.outputs[pinIndex];
+              // Add the appropriate destination junction.
+              // if (isFunctionType(pin.type)) {
+              //   const element = editingModel.newElement(pin.type, p.x, p.y);
+              //   editingModel.addItem(element, diagram);
+              //   const newElement = editingModel.openElement(element);
+              //   editingModel.replaceElement(element, newElement);
+              //   const dstPin = getType(newElement).inputs.length - 1,
+              //         wire = editingModel.newWire(
+              //             src.id, pinIndex, newElement.id, dstPin);
+              //   editingModel.addItem(wire, diagram);
+              //   selectionModel.set(newElement, wire)
+              // } else {
+              const connection = editingModel.connectOutput(src, srcPin, p);
+              selectionModel.set(connection.junction, connection.wire);
+            } else {
+              const newWire = editingModel.newWire(srcId, srcPin, dstId, dstPin);
+              editingModel.addItem(newWire);
+              selectionModel.set(newWire);
+            }
+          }
+          transactionModel.endTransaction();
+          break;
+        case moveSelection:
+        case moveCopySelection:
+          // Find element beneath items.
+          const hitList = this.hitTestCanvas(p), filter = drag.isSingleElement ?
+            isContainerTargetOrElementSlot : isContainerTarget, hitInfo = this.getFirstHit(hitList, filter), parent = hitInfo ? hitInfo.item : diagram, selection = selectionModel.contents();
+          if (drag.isSingleElement && !isContainer(parent)) {
+            // Replace parent item.
+            editingModel.replaceElement(parent, selection[0]);
+          } else {
+            // Reparent selected items.
+            selection.forEach(item => editingModel.addItem(item, parent));
+          }
+          transactionModel.endTransaction();
+          break;
+      }
+
+      this.setEditableText();
+
+      this.drag = null;
+      this.mouseHitInfo = null;
+      this.hotTrackInfo = null;
+      this.mouseHitInfo = null;
+
+      this.canvasController.draw();
+    }
+    onBeginHover(canvasController) {
+      // TODO hover over palette items?
+      const p = canvasController.getCurrentPointerPosition(),
+            hitList = this.hitTestCanvas(p),
+            hoverHitInfo = this.getFirstHit(hitList, isDraggable);
+      if (!hoverHitInfo)
+        return false;
+      hoverHitInfo.p = p;
+      this.hoverHitInfo = hoverHitInfo;
+      return true;
+    }
+    onEndHover(canvasController) {
+      if (this.hoverHitInfo)
+        this.hoverHitInfo = null;
+    }
+    onKeyDown(e) {
+      const diagram = this.diagram,
+            model = this.model,
+            ctx = this.ctx,
+            renderer = this.renderer,
+            selectionModel = model.selectionModel,
+            editingModel = model.editingModel,
+            transactionHistory = model.transactionHistory,
+            keyCode = e.keyCode,
+            cmdKey = e.ctrlKey || e.metaKey,
+            shiftKey = e.shiftKey;
+
+      renderer.begin(ctx);
+
+      if (keyCode === 8) { // 'delete'
+        editingModel.doDelete();
+        return true;
+      }
+      if (cmdKey) {
+        switch (keyCode) {
+          case 65: // 'a'
+            diagram.items.forEach(function (v) {
+              selectionModel.add(v);
+            });
+            return true;
+          case 90: // 'z'
+            if (transactionHistory.getUndo()) {
+              selectionModel.clear();
+              transactionHistory.undo();
+              return true;
+            }
+            return false;
+          case 89: // 'y'
+            if (transactionHistory.getRedo()) {
+              selectionModel.clear();
+              transactionHistory.redo();
+              return true;
+            }
+            return false;
+          case 88: // 'x'
+            editingModel.doCut();
+            return true;
+          case 67: // 'c'
+            editingModel.doCopy();
+            return true;
+          case 86: // 'v'
+            if (model.copyPasteModel.getScrap()) {
+              editingModel.doPaste(24, 24);
+              return true;
+            }
+            return false;
+          case 69: // 'e'
+            editingModel.doSelectConnectedElements(!shiftKey);
+            return true;
+          case 72: // 'h'
+            editingModel.doTogglePalette();
+            return true;
+          case 74: // 'j'
+            editingModel.doComplete();
+            return true;
+          case 75: // 'k'
+            editingModel.doExport();
+            return true;
+          case 76: // 'l'
+            editingModel.doAbstract();
+            return true;
+          case 66: // 'b'
+            editingModel.doBuild();
+            return true;
+          case 71: // 'g'
+            editingModel.doGroup();
+            return true;
+          case 83: // 's':
+            // let text = JSON.stringify(
+            //   diagram,
+            //   function(key, value) {
+            //     if (key.toString().charAt(0) === '_')
+            //       return;
+            //     if (value === undefined || value === null)
+            //       return;
+            //     return value;
+            //   },
+            //   2);
+            // // Writes diagram as JSON to console.
+            // console.log(text);
+            {
+              // // Render the selected elements using Canvas2SVG to convert to SVG format.
+              // // Clip to the selection bounding box.
+              // let bounds = renderer.getUnionBounds(selectionModel.contents());
+              // let ctx = new C2S(bounds.w, bounds.h);
+              // ctx.translate(-bounds.x, -bounds.y);
+              this.print();
+              return true;
+            }
+        }
+      }
+      renderer.end();
     }
   }
 
-  let hoverHitInfo = this.hoverHitInfo;
-  if (hoverHitInfo) {
-    renderer.drawHoverInfo(hoverHitInfo.item, hoverHitInfo.p);
-  }
-  renderer.end();
-}
-
-Editor.prototype.print = function(ctx) {
-  let diagram = this.diagram,
-      canvasController = this.canvasController,
-      model = this.model,
-      selectionModel = model.selectionModel,
-      editingModel = model.editingModel,
-      renderer = model.renderer;
-
-  renderer.begin(ctx);
-  canvasController.applyTransform();
-
-  // // Draw registration frame for generating screen shots.
-  // ctx.strokeStyle = renderer.theme.dimColor;
-  // ctx.lineWidth = 0.5;
-  // ctx.strokeRect(300, 10, 700, 300);
-
-  editingModel.selectInteriorWires();
-  function isSelectedElementOrGroup(item) {
-    return selectionModel.contains(item) && isElementOrGroup(item);
-  }
-
-  function isSelectedWire(item) {
-    return selectionModel.contains(item) && isWire(item);
-  }
-
-  visitItems(diagram.items,
-    function(item) {
-      renderer.draw(item, normalMode);
-    }, isSelectedElementOrGroup);
-  visitItems(diagram.items,
-    function(wire) {
-      renderer.draw(wire, normalMode);
-    }, isSelectedWire);
 
 
-  // let hoverHitInfo = this.hoverHitInfo;
-  // if (hoverHitInfo) {
-  //   renderer.drawHoverInfo(hoverHitInfo.item, hoverHitInfo.p);
-  // }
-  renderer.end();
-}
 
-Editor.prototype.hitTest = function(p) {
-  let model = this.model,
-      renderer = model.renderer,
-      canvasController = this.canvasController,
-      cp = canvasController.viewToCanvas(p),
-      scale = canvasController.scale,
-      zoom = Math.max(scale.x, scale.y),
-      tol = this.hitTolerance,
-      cTol = tol / zoom,
-      diagram = this.diagram,
-      hitList = [];
 
-  function pushHit(info) {
-    if (info)
-      hitList.push(info);
-  }
-
-  renderer.begin(ctx)
-  model.selectionModel.forEach(function(item) {
-    item => pushHit(renderer.hitTest(item, cp, cTol, normalMode));
-  });
-  // Skip the root functionChart, as hits there should go to the underlying canvas controller.
-  reverseVisitItems(diagram.items,
-    item => pushHit(renderer.hitTest(item, cp, cTol, normalMode)), isWire);
-  reverseVisitItems(diagram.items,
-    item => pushHit(renderer.hitTest(item, cp, cTol, normalMode)), isElementOrGroup);
-  renderer.end();
-  return hitList;
-}
-
-Editor.prototype.getFirstHit = function(hitList, filterFn) {
-  if (hitList) {
-    let model = this.model,
-    length = hitList.length;
-    for (let i = 0; i < length; i++) {
-      let hitInfo = hitList[i];
-      if (filterFn(hitInfo, model))
-        return hitInfo;
-    }
-  }
-  return null;
-}
 
 function isDraggable(hitInfo, model) {
   return !isFunctionChart(hitInfo.item);
@@ -2359,437 +2809,18 @@ function isContainerTargetOrElementSlot(hitInfo, model) {
          !model.hierarchicalModel.isItemInSelection(item);
 }
 
-Editor.prototype.setEditableText = function() {
-  let self = this,
-      model = this.model,
-      canvasController = this.canvasController,
-      textInputController = this.textInputController,
-      item = model.selectionModel.lastSelected(),
-      editingModel = model.editingModel;
-  if (item && isElementOrGroup(item) && item.type) {
-    let type = getType(item),
-        oldText = editingModel.getLabel(item);
-    textInputController.start(oldText, function(newText) {
-      const newType = editingModel.setLabel(item, newText);
-      if (newType !== item.type) {
-        model.transactionModel.beginTransaction('rename');
-        model.observableModel.changeValue(item, 'type', newType);
-        model.transactionModel.endTransaction();
-        canvasController.draw();
-      }
-    });
-  } else {
-    textInputController.clear();
-  }
-}
 
-Editor.prototype.onClick = function(p) {
-  const model = this.model,
-        selectionModel = model.selectionModel,
-        editingModel = model.editingModel,
-        shiftKeyDown = this.canvasController.shiftKeyDown,
-        cmdKeyDown = this.canvasController.cmdKeyDown,
-        hitList = this.hitTest(p),
-        mouseHitInfo = this.mouseHitInfo = this.getFirstHit(hitList, isDraggable);
-  if (mouseHitInfo) {
-    let item = mouseHitInfo.item;
-    if (mouseHitInfo.newGroupInstanceInfo) {
-      // Create a temporary palette element that will create the new instance.
-      const group = mouseHitInfo.item,
-            newGroupInstanceInfo = mouseHitInfo.newGroupInstanceInfo;
-      mouseHitInfo.group = item;
-      item = mouseHitInfo.item = {
-        kind: 'element',
-        x: newGroupInstanceInfo.x,
-        y: newGroupInstanceInfo.y,
-        type: group.type,
-        [_type]: getType(group),
-        state: 'palette',
-      };
-    }
-    if (cmdKeyDown || isPaletted(item)) {
-      mouseHitInfo.moveCopy = true;
-      // No wire dragging in this mode.
-      mouseHitInfo.input = mouseHitInfo.output = undefined;
-    }
-    selectionModel.select(item, shiftKeyDown);
-  } else {
-    if (!shiftKeyDown)
-      selectionModel.clear();
-  }
-  this.setEditableText();
-  return mouseHitInfo !== null;
-}
 
 const connectWireSrc = 1,
       connectWireDst = 2,
       moveSelection = 3,
       moveCopySelection = 4;
 
-Editor.prototype.onBeginDrag = function(p0) {
-  const mouseHitInfo = this.mouseHitInfo;
-  if (!mouseHitInfo)
-    return false;
 
-  const model = this.model,
-        selectionModel = model.selectionModel,
-        editingModel = model.editingModel,
-        canvasController = this.canvasController,
-        dragItem = mouseHitInfo.item;
-  let newWire, drag;
-  if (mouseHitInfo.input !== undefined) {
-    // Wire from input pin.
-    const elementId = model.dataModel.getId(dragItem),
-          cp0 = canvasController.viewToCanvas(p0);
-    // Start the new wire as connecting the dst element to nothing.
-    newWire = {
-      kind: 'wire',
-      dstId: elementId,
-      dstPin: mouseHitInfo.input,
-      [_p1]: cp0,
-    };
-    drag = {
-      kind: connectWireSrc,
-      name: 'Add new wire',
-      isNewWire: true,
-    };
-  } else if (mouseHitInfo.output !== undefined) {
-    // Wire from output pin.
-    const elementId = model.dataModel.getId(dragItem),
-          cp0 = canvasController.viewToCanvas(p0);
-    // Start the new wire as connecting the src element to nothing.
-    newWire = {
-      kind: 'wire',
-      srcId: elementId,
-      srcPin: mouseHitInfo.output,
-      [_p2]: cp0,
-    };
-    drag = {
-      kind: connectWireDst,
-      name: 'Add new wire',
-      isNewWire: true,
-    };
-  } else {
-    switch (dragItem.kind) {
-      case 'element':
-      case 'group':
-        if (mouseHitInfo.moveCopy) {
-          drag = { kind: moveCopySelection, name: 'Move copy of selection' };
-        } else {
-          drag = { kind: moveSelection, name: 'Move selection' };
-        }
-        break;
-      case 'wire':
-        if (mouseHitInfo.p1)
-          drag = { kind: connectWireSrc, name: 'Edit wire' };
-        else if (mouseHitInfo.p2)
-          drag = { kind: connectWireDst, name: 'Edit wire' };
-        break;
-    }
-  }
 
-  this.drag = drag;
-  if (drag) {
-    if (drag.kind === moveSelection || drag.kind === moveCopySelection) {
-      editingModel.selectInteriorWires();
-      editingModel.reduceSelection();
-      let items = selectionModel.contents();
-      drag.isSingleElement = items.length === 1 && isElement(items[0]);
-    }
-    model.transactionModel.beginTransaction(drag.name);
-    if (newWire) {
-      drag.item = newWire;
-      editingModel.newItem(newWire);
-      editingModel.addItem(newWire);
-      selectionModel.set(newWire);
-    } else {
-      drag.item = dragItem;
-      if (mouseHitInfo.moveCopy) {
-        const map = new Map(),
-              copies = editingModel.copyItems(selectionModel.contents(), map);
-        if (drag.isSingleElement && mouseHitInfo.newGroupInstanceInfo) {
-          editingModel.createGroupInstance(mouseHitInfo.group, copies[0]);
-        }
-        editingModel.addItems(copies);
-        selectionModel.set(copies);
-      }
-    }
-  }
-}
 
-Editor.prototype.onDrag = function(p0, p) {
-  const drag = this.drag;
-  if (!drag)
-    return;
-  const model = this.model,
-        dataModel = model.dataModel,
-        observableModel = model.observableModel,
-        transactionModel = model.transactionModel,
-        selectionModel = model.selectionModel,
-        canvasController = this.canvasController,
-        cp0 = canvasController.viewToCanvas(p0),
-        cp = canvasController.viewToCanvas(p),
-        mouseHitInfo = this.mouseHitInfo,
-        dragItem = drag.item,
-        snapshot = transactionModel.getSnapshot(dragItem),
-        hitList = this.hitTest(p);
-  let hitInfo;
-  switch (drag.kind) {
-    case moveSelection:
-    case moveCopySelection:
-      if (isElementOrGroup(dragItem)) {
-        const filter = drag.isSingleElement ?
-                       isContainerTargetOrElementSlot : isContainerTarget;
-        hitInfo = this.getFirstHit(hitList, filter);
-        selectionModel.forEach(function(item) {
-          if (isElementOrGroup(item)) {
-            let snapshot = transactionModel.getSnapshot(item);
-            if (snapshot) {
-              let dx = cp.x - cp0.x, dy = cp.y - cp0.y;
-              observableModel.changeValue(item, 'x', snapshot.x + dx);
-              observableModel.changeValue(item, 'y', snapshot.y + dy);
-            }
-          }
-        });
-      }
-      break;
-    case connectWireSrc:
-      hitInfo = this.getFirstHit(hitList, isOutputPin);
-      const srcId = hitInfo ? dataModel.getId(hitInfo.item) : 0;  // 0 is invalid id.
-      assert(isWire(dragItem));
-      observableModel.changeValue(dragItem, 'srcId', srcId);
-      if (srcId) {
-        observableModel.changeValue(dragItem, 'srcPin', hitInfo.output);
-        dragItem[_p1] = undefined;
-      } else {
-        // Change private property through model to update observers.
-        observableModel.changeValue(dragItem, _p1, cp);
-      }
-      break;
-    case connectWireDst:
-      hitInfo = this.getFirstHit(hitList, isInputPin);
-      const dstId = hitInfo ? dataModel.getId(hitInfo.item) : 0;  // 0 is invalid id.
-      assert(isWire(dragItem));
-      observableModel.changeValue(dragItem, 'dstId', dstId);
-      if (dstId) {
-        observableModel.changeValue(dragItem, 'dstPin', hitInfo.input);
-        dragItem[_p2] = undefined;
-      } else {
-        // Change private property through model to update observers.
-        observableModel.changeValue(dragItem, _p2, cp);
-      }
-      break;
-  }
 
-  this.hotTrackInfo = (hitInfo && hitInfo.item !== this.diagram) ? hitInfo : null;
-}
 
-Editor.prototype.onEndDrag = function(p) {
-  let drag = this.drag;
-  if (!drag)
-    return;
-  let dragItem = drag.item,
-      model = this.model,
-      diagram = this.diagram,
-      // dataModel = model.dataModel,
-      selectionModel = model.selectionModel,
-      transactionModel = model.transactionModel,
-      editingModel = model.editingModel;
-
-  switch (drag.kind) {
-    case connectWireSrc:
-    case connectWireDst:
-      if (drag.isNewWire) {
-        // Coalesce the creation and editing of the dragged wire into an
-        // insertion of a new wire.
-        const src = editingModel.getWireSrc(dragItem),
-              dst = editingModel.getWireDst(dragItem),
-              srcId = dragItem.srcId, srcPin = dragItem.srcPin,
-              dstId = dragItem.dstId, dstPin = dragItem.dstPin;
-        selectionModel.clear();
-        transactionModel.cancelTransaction();
-        transactionModel.beginTransaction('Add new wire');
-        if (!src) {
-          // Add the appropriate source junction.
-          const connection = editingModel.connectInput(dst, dstPin, p);
-          selectionModel.set(connection.junction, connection.wire);
-        } else if (!dst) {
-          const srcType = getType(src),
-                pinIndex = srcPin,
-                pin = srcType.outputs[pinIndex];
-          // Add the appropriate destination junction.
-          // if (isFunctionType(pin.type)) {
-          //   const element = editingModel.newElement(pin.type, p.x, p.y);
-          //   editingModel.addItem(element, diagram);
-          //   const newElement = editingModel.openElement(element);
-          //   editingModel.replaceElement(element, newElement);
-          //   const dstPin = getType(newElement).inputs.length - 1,
-          //         wire = editingModel.newWire(
-          //             src.id, pinIndex, newElement.id, dstPin);
-          //   editingModel.addItem(wire, diagram);
-          //   selectionModel.set(newElement, wire)
-          // } else {
-          const connection = editingModel.connectOutput(src, srcPin, p);
-          selectionModel.set(connection.junction, connection.wire);
-        } else {
-          const newWire = editingModel.newWire(srcId, srcPin, dstId, dstPin);
-          editingModel.addItem(newWire);
-          selectionModel.set(newWire);
-        }
-      }
-      transactionModel.endTransaction();
-      break;
-    case moveSelection:
-    case moveCopySelection:
-      // Find element beneath items.
-      const hitList = this.hitTest(p),
-            filter = drag.isSingleElement ?
-                     isContainerTargetOrElementSlot : isContainerTarget,
-            hitInfo = this.getFirstHit(hitList, filter),
-            parent = hitInfo ? hitInfo.item : diagram,
-            selection = selectionModel.contents();
-      if (drag.isSingleElement && !isContainer(parent)) {
-        // Replace parent item.
-        editingModel.replaceElement(parent, selection[0]);
-      } else {
-        // Reparent selected items.
-        selection.forEach(item => editingModel.addItem(item, parent));
-      }
-      transactionModel.endTransaction();
-      break;
-  }
-
-  this.setEditableText();
-
-  this.drag = null;
-  this.mouseHitInfo = null;
-  this.hotTrackInfo = null;
-  this.mouseHitInfo = null;
-
-  this.canvasController.draw();
-}
-
-Editor.prototype.onBeginHover = function(p) {
-  let model = this.model,
-      hitList = this.hitTest(p),
-      hoverHitInfo = this.getFirstHit(hitList, isDraggable);
-  if (!hoverHitInfo)
-    return false;
-  hoverHitInfo.p = p;
-  this.hoverHitInfo = hoverHitInfo;
-  return true;
-}
-
-Editor.prototype.onEndHover = function(p) {
-  if (this.hoverHitInfo)
-    this.hoverHitInfo = null;
-}
-
-Editor.prototype.onKeyDown = function(e) {
-  let diagram = this.diagram,
-      model = this.model,
-      ctx = this.ctx,
-      renderer = model.renderer,
-      selectionModel = model.selectionModel,
-      editingModel = model.editingModel,
-      transactionHistory = model.transactionHistory,
-      keyCode = e.keyCode,
-      cmdKey = e.ctrlKey || e.metaKey,
-      shiftKey = e.shiftKey;
-
-  renderer.begin(ctx);
-
-  if (keyCode === 8) {  // 'delete'
-    editingModel.doDelete();
-    return true;
-  }
-  if (cmdKey) {
-    switch (keyCode) {
-      case 65:  // 'a'
-        diagram.items.forEach(function(v) {
-          selectionModel.add(v);
-        });
-        return true;
-      case 90:  // 'z'
-        if (transactionHistory.getUndo()) {
-          selectionModel.clear();
-          transactionHistory.undo();
-          return true;
-        }
-        return false;
-      case 89:  // 'y'
-        if (transactionHistory.getRedo()) {
-          selectionModel.clear();
-          transactionHistory.redo();
-          return true;
-        }
-        return false;
-      case 88:  // 'x'
-        editingModel.doCut();
-        return true;
-      case 67:  // 'c'
-        editingModel.doCopy();
-        return true;
-      case 86:  // 'v'
-        if (model.copyPasteModel.getScrap()) {
-          editingModel.doPaste(24, 24);
-          return true;
-        }
-        return false;
-      case 69:  // 'e'
-        editingModel.doSelectConnectedElements(!shiftKey);
-        return true;
-      case 72:  // 'h'
-        editingModel.doTogglePalette();
-        return true;
-      case 74:  // 'j'
-        editingModel.doComplete();
-        return true;
-      case 75:  // 'k'
-        editingModel.doExport();
-        return true;
-      case 76:  // 'l'
-        editingModel.doAbstract();
-        return true;
-      case 66:  // 'b'
-        editingModel.doBuild();
-        return true;
-      case 71:  // 'g'
-        editingModel.doGroup();
-        return true;
-      case 83:  // 's':
-        // let text = JSON.stringify(
-        //   diagram,
-        //   function(key, value) {
-        //     if (key.toString().charAt(0) === '_')
-        //       return;
-        //     if (value === undefined || value === null)
-        //       return;
-        //     return value;
-        //   },
-        //   2);
-        // // Writes diagram as JSON to console.
-        // console.log(text);
-        {
-          // Render the selected elements using Canvas2SVG to convert to SVG format.
-          // Clip to the selection bounding box.
-          let bounds = renderer.getUnionBounds(selectionModel.contents());
-          let ctx = new C2S(bounds.w, bounds.h);
-          ctx.translate(-bounds.x, -bounds.y);
-          this.print(ctx);
-
-          // Write out the SVG file.
-          let serializedSVG = ctx.getSerializedSvg();
-          let blob = new Blob([serializedSVG], {
-            type: 'text/plain'
-          });
-          saveAs(blob, 'functionChart.svg', true);
-          return true;
-      }
-    }
-  }
-  renderer.end();
-}
 
 return {
   functionChartModel,

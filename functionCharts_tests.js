@@ -124,7 +124,8 @@ function newTestEditingModel() {
   functionCharts.functionChartModel.extend(model);
   model.dataModel.initialize();
 
-  model.renderer = new functionCharts.Renderer(model);
+  const renderer = new functionCharts.Renderer();
+  renderer.setModel(model);
   // Context sufficient for tests.
   const ctx = {
     measureText: () => { return { width: 10, height: 10 }},
