@@ -1531,7 +1531,8 @@ const editingModel = (function() {
 
 const normalMode = 1,
     highlightMode = 2,
-    hotTrackMode = 3;
+    hotTrackMode = 3,
+    printMode = 1;
 
 class Renderer {
   constructor(theme) {
@@ -1571,13 +1572,16 @@ class Renderer {
 
   getBounds(item) {
     assert(!isWire(item));
-    const translatableModel = this.model.translatableModel,
-          x = translatableModel.globalX(item),
-          y = translatableModel.globalY(item);
+    const translatableModel = this.model.translatableModel;
+    let x = translatableModel.globalX(item),
+        y = translatableModel.globalY(item);
     if (isElement(item)) {
       const type = getType(item);
       if (!type[_hasLayout])
         this.layoutType(type);
+      // Palette items aren't part of any model, so have no translatableModel x or y.
+      if (x === undefined) x = item.x;
+      if (y === undefined) y = item.y;
       return { x: x, y: y, w: type[_width], h: type[_height] };
     }
     if (isGroup(item)) {
@@ -1844,7 +1848,8 @@ class Renderer {
   }
 
   drawElementPin(element, input, output, mode) {
-    const ctx = this.ctx,
+    const theme = this.theme,
+          ctx = this.ctx,
           rect = this.getBounds(element),
           type = getType(element);
     let x = rect.x, y = rect.y, w = rect.w, h = rect.h,
@@ -1973,7 +1978,8 @@ class Renderer {
   drawWire(wire, mode) {
     if (!wire[_hasLayout])
       this.layoutWire(wire);
-    const ctx = this.ctx;
+    const theme = this.theme,
+          ctx = this.ctx;
     diagrams.bezierEdgePath(wire[_bezier], ctx, 0);
     switch (mode) {
       case normalMode:
@@ -2029,6 +2035,19 @@ class Renderer {
     if (hitInfo && !hitInfo.item)
       hitInfo.item = item;
     return hitInfo;
+  }
+
+  layout(item) {
+    switch (item.kind) {
+      case 'element':
+        break;
+      case 'group':
+        this.layoutGroup(item);
+        break;
+      case 'wire':
+        this.layoutWire(item);
+        break;
+    }
   }
 
   drawHoverInfo(item, p) {
@@ -2166,7 +2185,7 @@ class Renderer {
 
       functionChartModel.extend(model);
       editingModel.extend(model);
-      translatableModel.extend(model);
+      dataModels.translatableModel.extend(model);
 
       this.renderer.extend(model);
 
@@ -2177,10 +2196,8 @@ class Renderer {
             renderer = this.renderer;
 
       this.model = model;
+      this.diagram = model.root;
       this.functionChart = functionChart;
-
-      this.changedItems_.clear();
-      this.changedTopLevelStates_.clear();
 
       renderer.setModel(model);
 
@@ -2222,14 +2239,16 @@ class Renderer {
         });
         // Layout the palette items.
         renderer.begin(this.paletteController.getCtx());
-        reverseVisitItems(this.palette.items, item => renderer.layout(item));
+        reverseVisitItems(this.palette, item => renderer.layout(item));
         // Draw the palette items.
-        visitItems(this.palette.items, item => renderer.draw(item));
+        visitItems(this.palette, item => renderer.draw(item));
         renderer.end();
       }
     }
     draw(canvasController) {
-      const model = this.model, renderer = model.renderer;
+      const model = this.model,
+            diagram = this.diagram,
+            renderer = this.renderer;
 
       if (canvasController === this.canvasController) {
         const ctx = this.canvasController.getCtx(),
@@ -2297,7 +2316,7 @@ class Renderer {
       const elements = new Array();
       visitItems(diagram.items, function (item) {
         elements.push(item);
-      }, isNonTransition);
+      }, isElementOrGroup);
 
       const bounds = renderer.getBounds(elements);
       // Adjust all edges 1 pixel out.
@@ -2331,11 +2350,12 @@ class Renderer {
       // into the canvas space to render the drag and drop.
       return this.canvasController.viewToOtherCanvasView(canvasController, p);
     }
-    hitTestCanvas(canvasController, p) {
+    hitTestCanvas(p) {
       const model = this.model,
             renderer = this.renderer,
             tol = this.hitTolerance,
             diagram = this.diagram,
+            canvasController = this.canvasController,
             cp = this.getCanvasPosition(canvasController, p),
             ctx = canvasController.getCtx(),
             hitList = [];
@@ -2349,17 +2369,17 @@ class Renderer {
       });
       // Skip the root functionChart, as hits there should go to the underlying canvas controller.
       reverseVisitItems(diagram.items,
-        item => pushHit(renderer.hitTest(item, cp, cTol, normalMode)), isWire);
+        item => pushHit(renderer.hitTest(item, cp, tol, normalMode)), isWire);
       reverseVisitItems(diagram.items,
-        item => pushHit(renderer.hitTest(item, cp, cTol, normalMode)), isElementOrGroup);
+        item => pushHit(renderer.hitTest(item, cp, tol, normalMode)), isElementOrGroup);
       renderer.end();
       return hitList;
 
     }
-    hitTestPalette(canvasController, p) {
+    hitTestPalette(p) {
       const renderer = this.renderer,
             tol = this.hitTolerance,
-            ctx = canvasController.getCtx(),
+            ctx = this.canvasController.getCtx(),
             hitList = [];
       function pushInfo(info) {
         if (info)
@@ -2368,7 +2388,7 @@ class Renderer {
       renderer.begin(ctx);
       reverseVisitItems(this.palette, function (item) {
         pushInfo(renderer.hitTest(item, p, tol, printMode));
-      }, isNonTransition);
+      }, isElementOrGroup);
       renderer.end();
       return hitList;
     }
@@ -2394,7 +2414,9 @@ class Renderer {
             selectionModel = model.selectionModel,
             editingModel = model.editingModel,
             shiftKeyDown = this.canvasController.shiftKeyDown,
-            cmdKeyDown = this.canvasController.cmdKeyDown;
+            cmdKeyDown = this.canvasController.cmdKeyDown,
+            p = canvasController.getInitialPointerPosition(),
+            cp = canvasController.viewToCanvas(p);
 
       let hitList, inPalette;
       if (canvasController === this.paletteController) {
@@ -2432,7 +2454,8 @@ class Renderer {
         if (!shiftKeyDown)
           selectionModel.clear();
       }
-      this.setEditableText();
+      // TODO prop grid
+      // this.setEditableText();
       return mouseHitInfo !== null;
     }
     onBeginDrag(canvasController) {
@@ -2653,7 +2676,8 @@ class Renderer {
           break;
       }
 
-      this.setEditableText();
+      // TODO prop grid
+      // this.setEditableText();
 
       this.drag = null;
       this.mouseHitInfo = null;
@@ -2678,18 +2702,14 @@ class Renderer {
         this.hoverHitInfo = null;
     }
     onKeyDown(e) {
-      const diagram = this.diagram,
+        const diagram = this.diagram,
             model = this.model,
-            ctx = this.ctx,
-            renderer = this.renderer,
             selectionModel = model.selectionModel,
             editingModel = model.editingModel,
             transactionHistory = model.transactionHistory,
             keyCode = e.keyCode,
             cmdKey = e.ctrlKey || e.metaKey,
             shiftKey = e.shiftKey;
-
-      renderer.begin(ctx);
 
       if (keyCode === 8) { // 'delete'
         editingModel.doDelete();
@@ -2773,7 +2793,6 @@ class Renderer {
             }
         }
       }
-      renderer.end();
     }
   }
 
